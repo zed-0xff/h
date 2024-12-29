@@ -125,33 +125,37 @@ func drawHex(x, y int, buf []byte) int {
 			x++
 		}
 
-		zero := true
-		for k := 0; k < elWidth; k++ {
-			if j+k >= len(buf) {
-				break
-			}
-			if buf[j+k] != 0 {
-				zero = false
-				break
-			}
-		}
+		leadingZero := elWidth > 1 || buf[j] == 0
 
-		if zero {
-			for k := 0; k < elWidth*2; k++ {
-				termbox.SetCell(x+k, y, '0', termbox.Attribute(0x1fff&(0x09+z*0x100)), termbox.ColorDefault)
+		for k := elWidth - 1; k >= 0; k-- {
+			if j+k >= len(buf) {
+				continue
 			}
-			x += elWidth * 2
-		} else {
-			for k := elWidth - 1; k >= 0; k-- {
-				if j+k >= len(buf) {
-					break
+			byte := buf[j+k]
+
+			octet := byte >> 4
+			color := termbox.ColorDefault
+			if leadingZero {
+				if octet == 0 {
+					color = termbox.Attribute(0x1fff & (0x09 + z*0x100))
+				} else {
+					leadingZero = false
 				}
-				c := buf[j+k]
-				termbox.SetCell(x, y, rune(toHexChar(c>>4)), termbox.ColorDefault, termbox.ColorDefault)
-				x++
-				termbox.SetCell(x, y, rune(toHexChar(c&0x0f)), termbox.ColorDefault, termbox.ColorDefault)
-				x++
 			}
+			termbox.SetCell(x, y, rune(toHexChar(octet)), color, termbox.ColorDefault)
+			x++
+
+			octet = byte & 0x0f
+			color = termbox.ColorDefault
+			if leadingZero {
+				if octet == 0 {
+					color = termbox.Attribute(0x1fff & (0x09 + z*0x100))
+				} else {
+					leadingZero = false
+				}
+			}
+			termbox.SetCell(x, y, rune(toHexChar(octet)), color, termbox.ColorDefault)
+			x++
 		}
 		x++
 	}
