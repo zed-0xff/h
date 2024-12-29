@@ -6,7 +6,8 @@ import (
 	"io"
 	"os"
 	"strconv"
-    "strings"
+	"strings"
+	"time"
 
 	"github.com/nsf/termbox-go"
 )
@@ -22,9 +23,10 @@ type Breadcrumb struct {
 }
 
 type Reader interface {
-    ReadAt(p []byte, off int64) (n int, err error)
-    Seek(offset int64, whence int) (int64, error)
-    Read(p []byte) (n int, err error)
+	ReadAt(p []byte, off int64) (n int, err error)
+	Seek(offset int64, whence int) (int64, error)
+	Read(p []byte) (n int, err error)
+	Fd() uintptr
 }
 
 const maxMode = 2
@@ -40,10 +42,13 @@ var (
 	maxLinesPerPage int
 	nextOffset      int64
 	scrWidth        int
-    scrHeight       int
+	scrHeight       int
 	g_dedup         bool = true
 	breadcrumbs     []Breadcrumb
 	skipMap         map[Range]bool = make(map[Range]bool)
+
+	sparseMap map[Range]bool = make(map[Range]bool)
+	mapReady  bool           = false
 
 	a = 0
 	b = 0
@@ -53,29 +58,29 @@ var (
 
 // how many bytes are fit in whole screen
 func screenCapacity() int64 {
-    return cols * int64(maxLinesPerPage)
+	return cols * int64(maxLinesPerPage)
 }
 
 func draw() {
-    termbox.SetCursor(0, 0) // needed when ssh-ing into cygwin
+	termbox.SetCursor(0, 0) // needed when ssh-ing into cygwin
 	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
-    termbox.SetCursor(-1, -1)
+	termbox.SetCursor(-1, -1)
 
 	scrWidth, scrHeight = termbox.Size()
-    if scrWidth == 0 || scrHeight == 0 {
-        termbox.Close()
-        fmt.Println("Error getting screen size", scrWidth, scrHeight)
-        os.Exit(1)
-    }
+	if scrWidth == 0 || scrHeight == 0 {
+		termbox.Close()
+		fmt.Println("Error getting screen size", scrWidth, scrHeight)
+		os.Exit(1)
+	}
 	maxLinesPerPage = scrHeight - 1
 
-    if mode == 0 && cols > int64(scrWidth/3) {
-        mode++
-    }
+	if mode == 0 && cols > int64(scrWidth/3) {
+		mode++
+	}
 
 	nextOffset = fileHexDump(reader, maxLinesPerPage)
 
-    printAt(0, maxLinesPerPage, ":")
+	printAt(0, maxLinesPerPage, ":")
 
 	//    colorTable()
 	termbox.Flush()
@@ -122,9 +127,9 @@ func drawHex(x, y int, buf []byte) int {
 
 		zero := true
 		for k := 0; k < elWidth; k++ {
-            if j+k >= len(buf) {
-                break
-            }
+			if j+k >= len(buf) {
+				break
+			}
 			if buf[j+k] != 0 {
 				zero = false
 				break
@@ -138,9 +143,9 @@ func drawHex(x, y int, buf []byte) int {
 			x += elWidth * 2
 		} else {
 			for k := elWidth - 1; k >= 0; k-- {
-                if j+k >= len(buf) {
-                    break
-                }
+				if j+k >= len(buf) {
+					break
+				}
 				c := buf[j+k]
 				termbox.SetCell(x, y, rune(toHexChar(c>>4)), termbox.ColorDefault, termbox.ColorDefault)
 				x++
@@ -172,17 +177,18 @@ func drawLine(iLine int, chunk []byte, offset int64) {
 }
 
 func fileHexDump(f io.ReaderAt, maxLines int) int64 {
-	var bufPos int64
 	var chunkPos int64
+	t0 := time.Now()
 
-    bufSize := int(cols) * maxLines
+	bufSize := int(cols) * maxLines
 	var buf = make([]byte, bufSize)
 
-	nRead, err := f.ReadAt(buf, offset)
+	curLineOffset := offset
+	nRead, err := f.ReadAt(buf, curLineOffset)
 	if err != nil && err != io.EOF {
 		// stop termbox
 		termbox.Close()
-		fmt.Println("Tried to read", len(buf), "bytes at offset", offset)
+		fmt.Println("Tried to read", len(buf), "bytes at offset", curLineOffset)
 		panic(err)
 	}
 
@@ -195,49 +201,72 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 	chunks[c] = buf[0:cols]
 
 	scrWidth, _ = termbox.Size() // Get the screen width before drawing the lines
-	bufPos = 0
 	chunkPos = cols
-	drawLine(0, chunks[c], offset)
+	drawLine(0, chunks[c], curLineOffset)
+	curLineOffset += cols
 	was_separator := false
 	c = 1 - c
 	iLine := 1
 	var curSkip Range
 
 	for iLine < maxLines {
+		if time.Since(t0) > 50*time.Millisecond {
+			drawLine(iLine, make([]byte, 0), curLineOffset)
+			termbox.Flush()
+			t0 = time.Now()
+		}
+
 		chunks[c] = buf[chunkPos : chunkPos+cols]
 		if !g_dedup || !bytes.Equal(chunks[c], chunks[1-c]) {
 			if was_separator {
 				was_separator = false
-				curSkip.end = offset + bufPos + chunkPos
+				curSkip.end = curLineOffset
 				skipMap[curSkip] = true
 				curSkip = Range{}
 			}
 
-			drawLine(iLine, chunks[c], offset+bufPos+chunkPos)
-
+			drawLine(iLine, chunks[c], curLineOffset)
 			iLine++
 			c = 1 - c
 		} else {
+			// cur line equals to previous and dedup is on
 			if !was_separator {
-				curSkip.start = offset + bufPos + chunkPos
+				curSkip.start = curLineOffset
 				was_separator = true
 				printAt(0, iLine, "*")
 				iLine++
 			} else {
-				//                printAt(0, iLine, fmt.Sprintf("%0*X: ...", offsetWidth, offset+bufPos+chunkPos))
+				// separator already drawn
+				if mapReady {
+					for k, _ := range sparseMap {
+						if curLineOffset >= k.start && curLineOffset < k.end {
+							if curLineOffset%cols == 0 {
+								curLineOffset = k.end - cols
+							} else {
+								curLineOffset = k.end - cols*2 + (curLineOffset % cols)
+							}
+							chunkPos = int64(nRead) // force read
+							break
+						}
+						if k.start > curLineOffset {
+							break
+						}
+					}
+				}
 			}
 		}
+		curLineOffset += cols
 		chunkPos += cols
 
 		if chunkPos >= int64(nRead) {
 			// Copy the previous chunk, because reading into buf will change its contents, and it will break lines deduplication
 			chunks[1-c] = append([]byte(nil), chunks[1-c]...)
-			bufPos += int64(nRead)
-			nRead, err = f.ReadAt(buf, offset+bufPos)
+			nRead, err = f.ReadAt(buf, curLineOffset)
 			if err == io.EOF {
 				break
 			}
 			if err != nil {
+				termbox.Close()
 				panic(err)
 			}
 			chunkPos = 0
@@ -248,7 +277,7 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 	if iLine < maxLines && (was_separator || nRead == 0) {
 		drawLine(iLine, make([]byte, 0), fileSize)
 	}
-	return (offset + bufPos + chunkPos)
+	return curLineOffset
 }
 
 func toHex(buf []byte, cols int64, width int) string {
@@ -280,7 +309,7 @@ func toHex(buf []byte, cols int64, width int) string {
 		}
 	}
 
-    return hexBytes
+	return hexBytes
 }
 
 func toHexLine(buf []byte, ea int64, cols int64, width int) string {
@@ -340,8 +369,8 @@ func handleEvents() {
 				breadcrumbs = append(breadcrumbs, Breadcrumb{offset, ev.Key})
 				dir = -1
 				offset -= cols
-            case termbox.KeyCtrlG:
-                offset = askHexInt("[hex] offset: ", offset)
+			case termbox.KeyCtrlG:
+				offset = askHexInt("[hex] offset: ", offset)
 			case termbox.KeyPgdn, termbox.KeySpace:
 				breadcrumbs = append(breadcrumbs, Breadcrumb{offset, termbox.KeyPgdn})
 				dir = 1
@@ -378,7 +407,7 @@ func handleEvents() {
 			default:
 				switch ev.Ch {
 				case '-':
-					if cols - int64(elWidth) > 0 {
+					if cols-int64(elWidth) > 0 {
 						cols -= int64(elWidth)
 						invalidateSkips()
 					}
@@ -403,8 +432,8 @@ func handleEvents() {
 					searchNext()
 				case 'N':
 					searchPrev()
-                case 'w':
-                    cols = askInt("width: ", cols)
+				case 'w':
+					cols = askInt("width: ", cols)
 				case '/':
 					searchUI()
 				case 'q', 'Q':
@@ -448,35 +477,53 @@ func calcDefaultCols() int64 {
 	}
 }
 
+// TODO: cache?
+func buildSparseMap() {
+	fd := int(reader.Fd())
+	for pos := int64(0); pos < fileSize; {
+		nextHole := findHole(fd, pos)
+		if nextHole == -1 {
+			break
+		}
+		nextData := findData(fd, nextHole)
+		if nextData == -1 {
+			break
+		}
+		sparseMap[Range{nextHole, nextData}] = true
+		pos = nextData
+	}
+	mapReady = true
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: hexdump <file>")
 		return
 	}
 
-    fname := os.Args[1]
+	fname := os.Args[1]
 
-    file, err := os.Open(fname)
+	file, err := os.Open(fname)
 	if err != nil {
 		fmt.Println("Error opening file:", err)
 		return
 	}
 	defer file.Close()
 
-    if strings.HasPrefix(fname, "\\\\.\\PhysicalDrive") {
-        fileSize, err = getDriveSize(fname)
-        if err != nil {
-            panic(err)
-        }
-        reader = NewAlignedReader(file, fileSize, 512)
-    } else {
-        reader = file
-        fileInfo, err := file.Stat()
-        if err != nil {
-            panic(err)
-        }
-        fileSize = fileInfo.Size()
-    }
+	if strings.HasPrefix(fname, "\\\\.\\PhysicalDrive") {
+		fileSize, err = getDriveSize(fname)
+		if err != nil {
+			panic(err)
+		}
+		reader = NewAlignedReader(file, fileSize, 512)
+	} else {
+		reader = file
+		fileInfo, err := file.Stat()
+		if err != nil {
+			panic(err)
+		}
+		fileSize = fileInfo.Size()
+	}
 
 	if len(os.Args) > 2 {
 		offset, err = strconv.ParseInt(os.Args[2], 16, 64)
@@ -500,6 +547,9 @@ func main() {
 	defer termbox.Close()
 
 	cols = calcDefaultCols()
+
+	go buildSparseMap()
+
 	draw()
 	handleEvents()
 }
