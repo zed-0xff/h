@@ -266,10 +266,10 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 			// Copy the previous chunk, because reading into buf will change its contents, and it will break lines deduplication
 			chunks[1-c] = append([]byte(nil), chunks[1-c]...)
 			nRead, err = f.ReadAt(buf, curLineOffset)
-			if err == io.EOF {
+			if nRead == 0 {
 				break
 			}
-			if err != nil {
+			if err != nil && err != io.EOF {
 				termbox.Close()
 				panic(err)
 			}
