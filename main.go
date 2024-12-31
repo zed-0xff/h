@@ -47,6 +47,7 @@ var (
 	g_dedup         bool = true
 	breadcrumbs     []Breadcrumb
 	skipMap         map[Range]bool = make(map[Range]bool)
+	lastErrMsg      string
 
 	sparseMap map[Range]bool = make(map[Range]bool)
 	mapReady  bool           = false
@@ -521,6 +522,12 @@ func buildSparseMap() {
 	mapReady = true
 }
 
+func printLastErr() {
+	if lastErrMsg != "" {
+		fmt.Println(lastErrMsg)
+	}
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: hexdump <file>")
@@ -559,10 +566,14 @@ func main() {
 		}
 	}
 
+	go searchHistory.Load()
+
 	offsetWidth = len(fmt.Sprintf("%X", fileSize))
 	if offsetWidth < 8 {
 		offsetWidth = 8
 	}
+
+	defer printLastErr()
 
 	screen, err = tcell.NewScreen()
 	if err != nil {

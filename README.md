@@ -6,6 +6,7 @@
  - windows: reading `\\.\PhysicalDrive`
  - linux/osx: fast reading of files with sparse areas
  - hex/text search
+ - remember search history
 
 ## TODO
  - remember file position and visual mode (number of columns, etc)

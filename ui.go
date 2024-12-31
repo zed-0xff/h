@@ -26,9 +26,8 @@ func printAtEx(x, y int, msg string, styleFunc func(int) tcell.Style) {
 	}
 }
 
-func ask(prompt, curValue, allowedChars string, termKeys ...tcell.Key) (string, int) {
+func ask(prompt, curValue, allowedChars string, firstKey bool, termKeys ...tcell.Key) (string, tcell.Key) {
 	w, _ := screen.Size()
-	firstKey := true
 	buffer := bytes.NewBufferString(curValue)
 	cursorPos := buffer.Len()
 	printAt(0, maxLinesPerPage, prompt)
@@ -42,18 +41,18 @@ func ask(prompt, curValue, allowedChars string, termKeys ...tcell.Key) (string, 
 		switch ev := ev.(type) {
 		case *tcell.EventKey:
 			if len(termKeys) > 0 {
-				for i, key := range termKeys {
+				for _, key := range termKeys {
 					if ev.Key() == key {
-						return buffer.String(), i + 1
+						return buffer.String(), key
 					}
 				}
 			}
 
 			switch ev.Key() {
 			case tcell.KeyEsc, tcell.KeyCtrlC:
-				return "", -1
+				return "", ev.Key()
 			case tcell.KeyEnter:
-				return buffer.String(), 0
+				return buffer.String(), ev.Key()
 			case tcell.KeyLeft:
 				if cursorPos > 0 {
 					cursorPos--
@@ -97,17 +96,17 @@ func beep() {
 }
 
 func askString(prompt, curValue string) string {
-	str, _ := ask(prompt, curValue, "")
+	str, _ := ask(prompt, curValue, "", true)
 	return str
 }
 
 func askBinStr(prompt, curValue string) string {
-	str, _ := ask(prompt, curValue, "0123456789abcdefABCDEF ")
+	str, _ := ask(prompt, curValue, "0123456789abcdefABCDEF ", true)
 	return str
 }
 
 func askInt(prompt string, curValue int64) int64 {
-	str, _ := ask(prompt, fmt.Sprintf("%d", curValue), "0123456789abcdefxABCDEFX")
+	str, _ := ask(prompt, fmt.Sprintf("%d", curValue), "0123456789abcdefxABCDEFX", true)
 	if str == "" {
 		return curValue
 	}
@@ -120,7 +119,7 @@ func askInt(prompt string, curValue int64) int64 {
 }
 
 func askHexInt(prompt string, curValue int64) int64 {
-	str, _ := ask(prompt, fmt.Sprintf("%x", curValue), "0123456789abcdefxABCDEFX")
+	str, _ := ask(prompt, fmt.Sprintf("%x", curValue), "0123456789abcdefxABCDEFX", true)
 	if str == "" {
 		return curValue
 	}
@@ -152,31 +151,65 @@ func checkInterrupt() bool {
 
 var g_searchMode = 0
 
-func askSearchPattern(pattern []byte) []byte {
-	var key int
+func askSearchPattern(pattern0 []byte) []byte {
+	var key tcell.Key
 	var str string
 
+	firstKey := true
+	pattern := pattern0
 	for {
 		if g_searchMode == 0 {
 			pattern_str := strings.TrimSpace(toHex(pattern, int64(scrWidth/3), 1))
-			str, key = ask("find hex: ", pattern_str, "0123456789abcdefABCDEF ", tcell.KeyTab)
-			if key == 0 {
-				return fromHex(str)
+			str, key = ask("find hex : ", pattern_str, "0123456789abcdefABCDEF ", firstKey, tcell.KeyTab, tcell.KeyUp, tcell.KeyDown)
+			if key == tcell.KeyEnter {
+				pattern = fromHex(str)
+				searchHistory.Add(g_searchMode, pattern)
+				return pattern
 			}
 		} else {
 			pattern_str := string(pattern)
-			str, key = ask("find text: ", pattern_str, "", tcell.KeyTab)
-			if key == 0 {
-				return []byte(str)
+			str, key = ask("find text: ", pattern_str, "", firstKey, tcell.KeyTab, tcell.KeyUp, tcell.KeyDown)
+			if key == tcell.KeyEnter {
+				pattern = []byte(str)
+				searchHistory.Add(g_searchMode, pattern)
+				return pattern
 			}
 		}
 		switch key {
-		case -1:
+		case tcell.KeyEsc, tcell.KeyCtrlC:
 			// cancel search
 			return nil
-		case 0:
-			// enter
+		case tcell.KeyTab:
+			// switch search mode
+			g_searchMode = 1 - g_searchMode
+		case tcell.KeyUp:
+			// prev history
+			prevMode, prevPattern := searchHistory.Prev()
+			if prevPattern != nil {
+				g_searchMode = prevMode
+				pattern = prevPattern
+				firstKey = false
+			} else {
+				beep()
+			}
+		case tcell.KeyDown:
+			// next history
+			nextMode, nextPattern := searchHistory.Next()
+			if nextPattern != nil {
+				g_searchMode = nextMode
+				pattern = nextPattern
+				firstKey = false
+			} else {
+				if bytes.Equal(pattern, pattern0) {
+					beep()
+				} else {
+					pattern = pattern0
+					firstKey = false
+				}
+			}
+		default:
+			// unexpected key
+			return nil
 		}
-		g_searchMode = 1 - g_searchMode
 	}
 }
