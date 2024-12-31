@@ -5,6 +5,7 @@
  - visual hiding of duplicate rows ('d' key toggles on/off)
  - windows: reading `\\.\PhysicalDrive`
  - linux/osx: fast reading of files with sparse areas
+ - hex/text search
 
 ## TODO
  - remember file position and visual mode (number of columns, etc)

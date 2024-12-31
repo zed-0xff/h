@@ -9,7 +9,7 @@ import (
 const bufSize = 2 * 1024 * 1024
 
 var (
-	pattern []byte = make([]byte, 16)
+	pattern []byte = make([]byte, 0)
 )
 
 func hexDigitToInt(hexDigit byte) byte {
@@ -50,10 +50,9 @@ func fromHex(hexStr string) []byte {
 }
 
 func searchUI() {
-	pattern_str := strings.TrimSpace(toHex(pattern, int64(scrWidth/3), 1))
-	pattern_str = askBinStr("/", pattern_str)
-	if pattern_str != "" {
-		pattern = fromHex(pattern_str)
+	newPattern := askSearchPattern(pattern)
+	if newPattern != nil && len(newPattern) > 0 {
+		pattern = newPattern
 		searchNext()
 	}
 }
@@ -71,7 +70,9 @@ func searchPrev() {
 		newOffset = 0
 	}
 
-	for {
+	for !checkInterrupt() {
+		updateProgress(newOffset)
+
 		nRead, err := reader.ReadAt(buffer, newOffset)
 		if nRead > 0 {
 			if newOffset+int64(nRead) > offset+int64(patLen) {
@@ -119,20 +120,26 @@ func searchNext() {
 
 	newOffset := offset + 1
 	reader.Seek(newOffset, 0)
-	reader := bufio.NewReader(reader)
+	scanner := bufio.NewReader(reader)
 	for newOffset < fileSize && !checkInterrupt() {
-		newOffset = findNextData(newOffset) // skip sparse regions
+		skipOffset := findNextData(newOffset) // skip sparse regions
+		if skipOffset != newOffset {
+			newOffset = skipOffset
+			reader.Seek(newOffset, 0)
+			scanner.Reset(reader)
+			window = make([]byte, 0)
+		}
 		updateProgress(newOffset)
 
 		// Read a chunk of data from the reader
-		n, err := reader.Read(buffer)
+		n, err := scanner.Read(buffer)
 		if n > 0 {
 			window = append(window, buffer[:n]...)
 
 			// Search for the pattern in the current window
 			index := bytes.Index(window, pattern)
 			if index != -1 {
-				offset = newOffset + int64(index)
+				offset = newOffset + int64(index) - int64(len(window)) + int64(n)
 				return
 			}
 
