@@ -57,9 +57,20 @@ var (
 	z = 0x31
 )
 
-// how many bytes are fit in whole screen
-func screenCapacity() int64 {
-	return cols * int64(maxLinesPerPage)
+func findNextData(pos int64) int64 {
+	if !mapReady {
+		return pos
+	}
+
+	for k, _ := range sparseMap {
+		if pos >= k.start && pos < k.end {
+			return k.end
+		}
+		if k.start > pos {
+			break
+		}
+	}
+	return pos
 }
 
 func draw() {
@@ -83,12 +94,6 @@ func draw() {
 
 	//    colorTable()
 	screen.Show()
-}
-
-func printAt(x, y int, msg string) {
-	for i, c := range msg {
-		screen.SetCell(x+i, y, tcell.StyleDefault, c)
-	}
 }
 
 func toHexChar(c byte) byte {
@@ -215,7 +220,7 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 	var curSkip Range
 
 	for iLine < maxLines {
-		if time.Since(t0) > 50*time.Millisecond {
+		if time.Since(t0) > progressInterval {
 			drawLine(iLine, make([]byte, 0), curLineOffset)
 			screen.Show()
 			t0 = time.Now()
@@ -242,21 +247,14 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 				iLine++
 			} else {
 				// separator already drawn
-				if mapReady {
-					for k, _ := range sparseMap {
-						if curLineOffset >= k.start && curLineOffset < k.end {
-							if curLineOffset%cols == 0 {
-								curLineOffset = k.end - cols
-							} else {
-								curLineOffset = k.end - cols*2 + (curLineOffset % cols)
-							}
-							chunkPos = int64(nRead) // force read
-							break
-						}
-						if k.start > curLineOffset {
-							break
-						}
+				nextData := findNextData(curLineOffset)
+				if nextData != curLineOffset {
+					if curLineOffset%cols == 0 {
+						curLineOffset = nextData - cols
+					} else {
+						curLineOffset = nextData - cols*2 + (curLineOffset % cols)
 					}
+					chunkPos = int64(nRead) // force read
 				}
 			}
 		}

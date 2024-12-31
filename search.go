@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-const bufSize = 512 * 1024
+const bufSize = 2 * 1024 * 1024
 
 var (
 	pattern []byte = make([]byte, 16)
@@ -112,26 +112,7 @@ func searchPrev() {
 	}
 }
 
-//func searchInterruptCheck(ctx context.Context) {
-//    for {
-//        select {
-//        case event := <-eventChannel:
-//            if event.Type == termbox.EventKey {
-//                if event.Key == termbox.KeyEsc || event.Key == termbox.KeyCtrlC {
-//                    return // Exit the goroutine if interrupted by user input
-//                }
-//            }
-//            case <-ctx.Done(): // Listen for cancellation signal from the context
-//            return
-//        }
-//    }
-//}
-
 func searchNext() {
-	//    ctx, cancel := context.WithCancel(context.Background())
-	//	defer cancel() // Ensure cancellation when main function exits
-	//    go searchInterruptCheck(ctx) // Start the goroutine to listen for user input
-
 	buffer := make([]byte, bufSize)
 	patLen := len(pattern)
 	window := make([]byte, 0)
@@ -139,7 +120,10 @@ func searchNext() {
 	newOffset := offset + 1
 	reader.Seek(newOffset, 0)
 	reader := bufio.NewReader(reader)
-	for {
+	for newOffset < fileSize && !checkInterrupt() {
+		newOffset = findNextData(newOffset) // skip sparse regions
+		updateProgress(newOffset)
+
 		// Read a chunk of data from the reader
 		n, err := reader.Read(buffer)
 		if n > 0 {

@@ -9,6 +9,23 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
+// how many bytes can fit in the screen
+func screenCapacity() int64 {
+	return cols * int64(maxLinesPerPage)
+}
+
+func printAt(x, y int, msg string) {
+	for i, c := range msg {
+		screen.SetCell(x+i, y, tcell.StyleDefault, c)
+	}
+}
+
+func printAtEx(x, y int, msg string, styleFunc func(int) tcell.Style) {
+	for i, c := range msg {
+		screen.SetCell(x+i, y, styleFunc(x+i), c)
+	}
+}
+
 func ask(prompt, curValue, allowedChars string) string {
 	printAt(0, maxLinesPerPage, prompt)
 	screen.Show()
@@ -81,4 +98,22 @@ func askHexInt(prompt string, curValue int64) int64 {
 		return curValue
 	}
 	return n
+}
+
+func checkInterrupt() bool {
+	if screen.HasPendingEvent() {
+		ev := screen.PollEvent()
+		switch ev := ev.(type) {
+		case *tcell.EventKey:
+			switch ev.Key() {
+			case tcell.KeyEsc, tcell.KeyCtrlC:
+				return true
+			case tcell.KeyRune:
+				if ev.Rune() == 'q' || ev.Rune() == 'Q' {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
