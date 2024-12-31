@@ -71,6 +71,14 @@ func searchPrev() {
 	}
 
 	for !checkInterrupt() {
+		skipOffset := findPrevData(newOffset) // skip sparse regions
+		if skipOffset != newOffset && newOffset-skipOffset > bufSize {
+			newOffset = skipOffset - bufSize
+			if newOffset < 0 {
+				newOffset = 0
+			}
+			window = make([]byte, 0)
+		}
 		updateProgress(newOffset)
 
 		nRead, err := reader.ReadAt(buffer, newOffset)

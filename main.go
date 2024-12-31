@@ -49,8 +49,8 @@ var (
 	skipMap         map[Range]bool = make(map[Range]bool)
 	lastErrMsg      string
 
-	sparseMap map[Range]bool = make(map[Range]bool)
-	mapReady  bool           = false
+	sparseMap []Range = make([]Range, 0)
+	mapReady  bool    = false
 
 	a = 0
 	b = 0
@@ -63,14 +63,32 @@ func findNextData(pos int64) int64 {
 		return pos
 	}
 
-	for k, _ := range sparseMap {
-		if pos >= k.start && pos < k.end {
-			return k.end
+	for _, r := range sparseMap {
+		if pos >= r.start && pos < r.end {
+			return r.end
 		}
-		if k.start > pos {
+		if r.start > pos {
 			break
 		}
 	}
+	return pos
+}
+
+func findPrevData(pos int64) int64 {
+	if !mapReady {
+		return pos
+	}
+
+	for i := len(sparseMap) - 1; i >= 0; i-- {
+		r := sparseMap[i]
+		if pos > r.start && pos <= r.end {
+			return r.start
+		}
+		if r.end < pos {
+			break
+		}
+	}
+
 	return pos
 }
 
@@ -516,7 +534,7 @@ func buildSparseMap() {
 		if nextData == -1 {
 			break
 		}
-		sparseMap[Range{nextHole, nextData}] = true
+		sparseMap = append(sparseMap, Range{nextHole, nextData})
 		pos = nextData
 	}
 	mapReady = true
