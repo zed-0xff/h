@@ -112,7 +112,26 @@ func searchPrev() {
 	}
 }
 
+//func searchInterruptCheck(ctx context.Context) {
+//    for {
+//        select {
+//        case event := <-eventChannel:
+//            if event.Type == termbox.EventKey {
+//                if event.Key == termbox.KeyEsc || event.Key == termbox.KeyCtrlC {
+//                    return // Exit the goroutine if interrupted by user input
+//                }
+//            }
+//            case <-ctx.Done(): // Listen for cancellation signal from the context
+//            return
+//        }
+//    }
+//}
+
 func searchNext() {
+	//    ctx, cancel := context.WithCancel(context.Background())
+	//	defer cancel() // Ensure cancellation when main function exits
+	//    go searchInterruptCheck(ctx) // Start the goroutine to listen for user input
+
 	buffer := make([]byte, bufSize)
 	patLen := len(pattern)
 	window := make([]byte, 0)

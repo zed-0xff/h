@@ -6,37 +6,35 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nsf/termbox-go"
+	"github.com/gdamore/tcell/v2"
 )
 
 func ask(prompt, curValue, allowedChars string) string {
 	printAt(0, maxLinesPerPage, prompt)
-	termbox.Flush()
+	screen.Show()
 
 	buffer := bytes.NewBufferString(curValue)
 	for {
 		printAt(0, maxLinesPerPage, prompt+buffer.String())
 		x := len(prompt) + buffer.Len()
-		termbox.SetCell(x, maxLinesPerPage, ' ', termbox.AttrReverse, termbox.ColorDefault)
-		termbox.SetCell(x+1, maxLinesPerPage, ' ', termbox.ColorDefault, termbox.ColorDefault)
-		termbox.Flush()
+		screen.SetCell(x, maxLinesPerPage, tcell.StyleDefault.Reverse(true), ' ')
+		screen.SetCell(x+1, maxLinesPerPage, tcell.StyleDefault, ' ')
+		screen.Show()
 
-		switch ev := termbox.PollEvent(); ev.Type {
-		case termbox.EventKey:
-			switch ev.Key {
-			case termbox.KeyEsc, termbox.KeyCtrlC:
+		ev := screen.PollEvent()
+		switch ev := ev.(type) {
+		case *tcell.EventKey:
+			switch ev.Key() {
+			case tcell.KeyEsc, tcell.KeyCtrlC:
 				return ""
-			case termbox.KeyEnter:
+			case tcell.KeyEnter:
 				return buffer.String()
-			case termbox.KeyBackspace, termbox.KeyBackspace2:
+			case tcell.KeyBackspace, tcell.KeyBackspace2:
 				if buffer.Len() > 0 {
 					buffer.Truncate(buffer.Len() - 1)
 				}
-			default:
-				c := ev.Ch
-				if ev.Key == termbox.KeySpace {
-					c = ' '
-				}
+			case tcell.KeyRune:
+				c := ev.Rune()
 				if len(allowedChars) == 0 || strings.Contains(allowedChars, string(c)) {
 					buffer.WriteRune(c)
 				} else {

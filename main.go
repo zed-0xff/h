@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nsf/termbox-go"
+	"github.com/gdamore/tcell/v2"
 )
 
 type Range struct {
@@ -19,7 +19,7 @@ type Range struct {
 
 type Breadcrumb struct {
 	offset int64
-	key    termbox.Key
+	key    tcell.Key
 }
 
 type Reader interface {
@@ -32,6 +32,7 @@ type Reader interface {
 const maxMode = 2
 
 var (
+	screen          tcell.Screen
 	reader          Reader
 	fileSize        int64
 	offset          int64
@@ -62,33 +63,31 @@ func screenCapacity() int64 {
 }
 
 func draw() {
-	termbox.SetCursor(0, 0) // needed when ssh-ing into cygwin
-	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
-	termbox.SetCursor(-1, -1)
+	screen.Clear()
 
-	scrWidth, scrHeight = termbox.Size()
+	scrWidth, scrHeight = screen.Size()
 	if scrWidth == 0 || scrHeight == 0 {
-		termbox.Close()
+		screen.Fini()
 		fmt.Println("Error getting screen size", scrWidth, scrHeight)
 		os.Exit(1)
 	}
 	maxLinesPerPage = scrHeight - 1
 
-	if mode == 0 && cols > int64(scrWidth/3) {
-		mode++
-	}
+	//	if mode == 0 && cols > int64(scrWidth/3) {
+	//		mode++
+	//	}
 
 	nextOffset = fileHexDump(reader, maxLinesPerPage)
 
 	printAt(0, maxLinesPerPage, ":")
 
 	//    colorTable()
-	termbox.Flush()
+	screen.Show()
 }
 
 func printAt(x, y int, msg string) {
 	for i, c := range msg {
-		termbox.SetCell(x+i, y, c, termbox.ColorDefault, termbox.ColorDefault)
+		screen.SetCell(x+i, y, tcell.StyleDefault, c)
 	}
 }
 
@@ -100,26 +99,28 @@ func toHexChar(c byte) byte {
 	}
 }
 
-func colorTable() {
-	if a < 0 {
-		a = 0
-	}
-	if b < 0 {
-		b = 0
-	}
-	w, h := termbox.Size()
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x += 4 {
-			value := x/2*a + y*b + z
-			text := fmt.Sprintf("%04x", ((value) & 0xffff))
-			for i, c := range text {
-				termbox.SetCell(x+i, y, c, termbox.Attribute((value)&0x7fff), termbox.ColorDefault)
-			}
-		}
-	}
-}
+//func colorTable() {
+//	if a < 0 {
+//		a = 0
+//	}
+//	if b < 0 {
+//		b = 0
+//	}
+//	w, h := screen.Size()
+//	for y := 0; y < h; y++ {
+//		for x := 0; x < w; x += 4 {
+//			value := x/2*a + y*b + z
+//			text := fmt.Sprintf("%04x", ((value) & 0xffff))
+//			for i, c := range text {
+//				termbox.SetCell(x+i, y, c, termbox.Attribute((value)&0x7fff), termbox.ColorDefault)
+//			}
+//		}
+//	}
+//}
 
 func drawHex(x, y int, buf []byte) int {
+	stGray := tcell.StyleDefault.Foreground(tcell.NewRGBColor(0x30, 0x30, 0x30))
+
 	for j := 0; j < len(buf); j += elWidth {
 		if elWidth == 1 && j > 0 && j%(8*elWidth) == 0 { // Add an extra space every 8 groups
 			x++
@@ -134,27 +135,27 @@ func drawHex(x, y int, buf []byte) int {
 			byte := buf[j+k]
 
 			octet := byte >> 4
-			color := termbox.ColorDefault
+			st := tcell.StyleDefault
 			if leadingZero {
 				if octet == 0 {
-					color = termbox.Attribute(0x1fff & (0x09 + z*0x100))
+					st = stGray
 				} else {
 					leadingZero = false
 				}
 			}
-			termbox.SetCell(x, y, rune(toHexChar(octet)), color, termbox.ColorDefault)
+			screen.SetCell(x, y, st, rune(toHexChar(octet)))
 			x++
 
 			octet = byte & 0x0f
-			color = termbox.ColorDefault
+			st = tcell.StyleDefault
 			if leadingZero {
 				if octet == 0 {
-					color = termbox.Attribute(0x1fff & (0x09 + z*0x100))
+					st = stGray
 				} else {
 					leadingZero = false
 				}
 			}
-			termbox.SetCell(x, y, rune(toHexChar(octet)), color, termbox.ColorDefault)
+			screen.SetCell(x, y, st, rune(toHexChar(octet)))
 			x++
 		}
 		x++
@@ -191,7 +192,7 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 	nRead, err := f.ReadAt(buf, curLineOffset)
 	if err != nil && err != io.EOF {
 		// stop termbox
-		termbox.Close()
+		screen.Fini()
 		fmt.Println("Tried to read", len(buf), "bytes at offset", curLineOffset)
 		panic(err)
 	}
@@ -204,7 +205,7 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 
 	chunks[c] = buf[0:cols]
 
-	scrWidth, _ = termbox.Size() // Get the screen width before drawing the lines
+	scrWidth, _ = screen.Size() // Get the screen width before drawing the lines
 	chunkPos = cols
 	drawLine(0, chunks[c], curLineOffset)
 	curLineOffset += cols
@@ -216,7 +217,7 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 	for iLine < maxLines {
 		if time.Since(t0) > 50*time.Millisecond {
 			drawLine(iLine, make([]byte, 0), curLineOffset)
-			termbox.Flush()
+			screen.Show()
 			t0 = time.Now()
 		}
 
@@ -270,7 +271,7 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 				break
 			}
 			if err != nil && err != io.EOF {
-				termbox.Close()
+				screen.Fini()
 				panic(err)
 			}
 			chunkPos = 0
@@ -352,64 +353,69 @@ func maxOffset() int64 {
 func handleEvents() {
 	for {
 		dir := 0
-		switch ev := termbox.PollEvent(); ev.Type {
-		case termbox.EventKey:
-			switch ev.Key {
-			case termbox.KeyArrowLeft:
-				breadcrumbs = append(breadcrumbs, Breadcrumb{offset, ev.Key})
+		ev := screen.PollEvent()
+		switch ev := ev.(type) {
+		case *tcell.EventKey:
+			switch ev.Key() {
+			case tcell.KeyLeft:
+				breadcrumbs = append(breadcrumbs, Breadcrumb{offset, ev.Key()})
 				dir = -1
 				offset -= 1
 				invalidateSkips()
-			case termbox.KeyArrowRight:
-				breadcrumbs = append(breadcrumbs, Breadcrumb{offset, ev.Key})
+			case tcell.KeyRight:
+				breadcrumbs = append(breadcrumbs, Breadcrumb{offset, ev.Key()})
 				dir = 1
 				offset += 1
 				invalidateSkips()
-			case termbox.KeyArrowDown:
-				breadcrumbs = append(breadcrumbs, Breadcrumb{offset, ev.Key})
+			case tcell.KeyDown:
+				breadcrumbs = append(breadcrumbs, Breadcrumb{offset, ev.Key()})
 				dir = 1
 				offset += cols
-			case termbox.KeyArrowUp:
-				breadcrumbs = append(breadcrumbs, Breadcrumb{offset, ev.Key})
+			case tcell.KeyUp:
+				breadcrumbs = append(breadcrumbs, Breadcrumb{offset, ev.Key()})
 				dir = -1
 				offset -= cols
-			case termbox.KeyCtrlG:
+			case tcell.KeyCtrlG:
 				offset = askHexInt("[hex] offset: ", offset)
-			case termbox.KeyPgdn, termbox.KeySpace:
-				breadcrumbs = append(breadcrumbs, Breadcrumb{offset, termbox.KeyPgdn})
+			case tcell.KeyPgDn:
+				breadcrumbs = append(breadcrumbs, Breadcrumb{offset, tcell.KeyPgDn})
 				dir = 1
 				offset = nextOffset
-			case termbox.KeyPgup:
+			case tcell.KeyPgUp:
 				// efficiently handle skipping over deduplicated lines
-				if len(breadcrumbs) > 0 && breadcrumbs[len(breadcrumbs)-1].key == termbox.KeyPgdn {
+				if len(breadcrumbs) > 0 && breadcrumbs[len(breadcrumbs)-1].key == tcell.KeyPgDn {
 					offset = breadcrumbs[len(breadcrumbs)-1].offset
 					breadcrumbs = breadcrumbs[:len(breadcrumbs)-1]
 				} else {
-					breadcrumbs = append(breadcrumbs, Breadcrumb{offset, termbox.KeyPgup})
+					breadcrumbs = append(breadcrumbs, Breadcrumb{offset, tcell.KeyPgUp})
 				}
 				dir = -1
 				offset -= cols * int64(maxLinesPerPage)
-			case termbox.KeyHome:
-				breadcrumbs = append(breadcrumbs, Breadcrumb{offset, ev.Key})
+			case tcell.KeyHome:
+				breadcrumbs = append(breadcrumbs, Breadcrumb{offset, ev.Key()})
 				offset = 0
-			case termbox.KeyEnd:
-				breadcrumbs = append(breadcrumbs, Breadcrumb{offset, ev.Key})
+			case tcell.KeyEnd:
+				breadcrumbs = append(breadcrumbs, Breadcrumb{offset, ev.Key()})
 				offset = maxOffset()
-			case termbox.KeyBackspace, termbox.KeyBackspace2:
+			case tcell.KeyBackspace, tcell.KeyBackspace2:
 				if len(breadcrumbs) > 0 {
 					offset = breadcrumbs[len(breadcrumbs)-1].offset
 					breadcrumbs = breadcrumbs[:len(breadcrumbs)-1]
 				}
-			case termbox.KeyTab:
+			case tcell.KeyTab:
 				mode += 1
 				if mode > maxMode {
 					mode = 0
 				}
-			case termbox.KeyEsc, termbox.KeyCtrlC:
+			case tcell.KeyEsc, tcell.KeyCtrlC:
 				return
 
-			default:
-				switch ev.Ch {
+			case tcell.KeyRune:
+				switch ev.Rune() {
+				case ' ':
+					breadcrumbs = append(breadcrumbs, Breadcrumb{offset, tcell.KeyPgDn})
+					dir = 1
+					offset = nextOffset
 				case '-':
 					if cols-int64(elWidth) > 0 {
 						cols -= int64(elWidth)
@@ -421,16 +427,16 @@ func handleEvents() {
 				case '0':
 					cols = calcDefaultCols()
 				case '1', '2', '4', '8':
-					elWidth = int(ev.Ch - '0')
+					elWidth = int(ev.Rune() - '0')
 				case '9':
 					elWidth = 0x10
 				case 'd':
 					g_dedup = !g_dedup
 				case 'g':
-					breadcrumbs = append(breadcrumbs, Breadcrumb{offset, termbox.KeyHome})
+					breadcrumbs = append(breadcrumbs, Breadcrumb{offset, tcell.KeyHome})
 					offset = 0
 				case 'G':
-					breadcrumbs = append(breadcrumbs, Breadcrumb{offset, termbox.KeyEnd})
+					breadcrumbs = append(breadcrumbs, Breadcrumb{offset, tcell.KeyEnd})
 					offset = maxOffset()
 				case 'n':
 					searchNext()
@@ -469,16 +475,34 @@ func handleEvents() {
 
 func calcDefaultCols() int64 {
 	var w int64
-	width, _ := termbox.Size()
-	w = int64(width) / 4 / 8 * 8
-	data := make([]byte, 0x100)
+	scrWidth, _ := screen.Size()
+	w = int64(scrWidth)
+	data := make([]byte, 0x200)
+	var s string
 	for {
-		s := toHexLine(data, 0, w, 1) + toAsciiLine(data, w)
-		if len(s) <= width {
-			return w
+		switch mode {
+		case 0:
+			s = toHexLine(data, 0, w, elWidth) + toAsciiLine(data, w)
+		case 1:
+			s = toHexLine(data, 0, w, elWidth)
+		case 2:
+			s = toAsciiLine(data, w)
 		}
-		w -= 8
+		if len(s) <= scrWidth {
+			break
+		}
+		w -= 1
 	}
+	if elWidth == 1 {
+		if w%8 != 0 {
+			w -= w % 8
+		}
+	} else {
+		if w%int64(elWidth) != 0 {
+			w -= w % int64(elWidth)
+		}
+	}
+	return w
 }
 
 // TODO: cache?
@@ -542,13 +566,14 @@ func main() {
 		offsetWidth = 8
 	}
 
-	err = termbox.Init()
+	screen, err = tcell.NewScreen()
 	if err != nil {
-		fmt.Println("Error initializing termbox:", err)
-		return
+		panic(err)
 	}
-
-	defer termbox.Close()
+	if err := screen.Init(); err != nil {
+		panic(err)
+	}
+	defer screen.Fini()
 
 	cols = calcDefaultCols()
 
