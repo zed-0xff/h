@@ -15,6 +15,10 @@ const (
 	progressInterval = 50 * time.Millisecond
 )
 
+func resetProgress() {
+	lastProgressTime = time.Now()
+}
+
 func updateProgress(pos int64) {
 	if time.Since(lastProgressTime) < progressInterval {
 		return

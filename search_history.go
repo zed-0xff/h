@@ -128,6 +128,15 @@ func (sh *SearchHistory) sort_uniq() {
 	}
 }
 
+func initSearch() {
+	searchHistory.Load()
+	if searchHistory.ready && len(searchHistory.entries) > 0 {
+		lastSearch := searchHistory.entries[len(searchHistory.entries)-1]
+		g_searchMode = lastSearch.Mode
+		g_searchPattern = lastSearch.Pattern
+	}
+}
+
 func (sh *SearchHistory) Load() {
 	sh.tryLoad()
 	sh.pos = len(sh.entries)

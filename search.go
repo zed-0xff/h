@@ -6,10 +6,10 @@ import (
 	"strings"
 )
 
-const bufSize = 2 * 1024 * 1024
+const bufSize = 8 * 1024 * 1024
 
 var (
-	pattern []byte = make([]byte, 0)
+	g_searchPattern []byte = make([]byte, 0)
 )
 
 func hexDigitToInt(hexDigit byte) byte {
@@ -50,29 +50,34 @@ func fromHex(hexStr string) []byte {
 }
 
 func searchUI() {
-	newPattern := askSearchPattern(pattern)
+	newPattern := askSearchPattern(g_searchPattern)
 	if newPattern != nil && len(newPattern) > 0 {
-		pattern = newPattern
+		g_searchPattern = newPattern
 		searchNext()
 	}
 }
 
-func searchPrev() {
-	buffer := make([]byte, bufSize)
-	patLen := len(pattern)
+func searchPrev() bool {
+	buf := make([]byte, bufSize)
+	patLen := len(g_searchPattern)
 	window := make([]byte, 0)
 
 	if offset <= 0 {
-		return
+		return false
 	}
 	newOffset := offset - bufSize + int64(patLen) - 1
 	if newOffset < 0 {
 		newOffset = 0
 	}
 
-	for !checkInterrupt() {
-		skipOffset := findPrevData(newOffset) // skip sparse regions
-		if skipOffset != newOffset && newOffset-skipOffset > bufSize {
+	resetProgress()
+	for {
+		if checkInterrupt() {
+			return true // don't beep
+		}
+
+		skipOffset := findPrevData(newOffset + bufSize) // skip sparse regions
+		if skipOffset != -1 {
 			newOffset = skipOffset - bufSize
 			if newOffset < 0 {
 				newOffset = 0
@@ -81,36 +86,33 @@ func searchPrev() {
 		}
 		updateProgress(newOffset)
 
-		nRead, err := reader.ReadAt(buffer, newOffset)
+		nRead, _ := reader.ReadAt(buf, newOffset)
 		if nRead > 0 {
 			if newOffset+int64(nRead) > offset+int64(patLen) {
 				nRead = int(offset - newOffset + int64(patLen) - 1)
 			}
 
-			window = append(buffer[:nRead], window...)
-			index := bytes.LastIndex(window, pattern)
+			window = append(buf[:nRead], window...)
+			index := bytes.LastIndex(window, g_searchPattern)
 
 			if index != -1 {
 				newOffset += int64(index)
 				if newOffset < offset {
 					offset = newOffset
 				}
-				return
+				return true
 			}
 
 			// Shrink the window to avoid unbounded growth
 			if len(window) > patLen {
 				window = window[:patLen]
 			}
-		}
-
-		// Break if we've reached the beginning of the file
-		if err != nil {
-			return
+		} else {
+			return false
 		}
 
 		if newOffset == 0 {
-			return
+			return false
 		}
 
 		// Update the new offset (move backward)
@@ -121,17 +123,22 @@ func searchPrev() {
 	}
 }
 
-func searchNext() {
-	buffer := make([]byte, bufSize)
-	patLen := len(pattern)
+func searchNext() bool {
+	buf := make([]byte, bufSize)
+	patLen := len(g_searchPattern)
 	window := make([]byte, 0)
 
 	newOffset := offset + 1
 	reader.Seek(newOffset, 0)
 	scanner := bufio.NewReader(reader)
-	for newOffset < fileSize && !checkInterrupt() {
+	resetProgress()
+	for newOffset < fileSize {
+		if checkInterrupt() {
+			return true // don't beep
+		}
+
 		skipOffset := findNextData(newOffset) // skip sparse regions
-		if skipOffset != newOffset {
+		if skipOffset != -1 {
 			newOffset = skipOffset
 			reader.Seek(newOffset, 0)
 			scanner.Reset(reader)
@@ -140,15 +147,15 @@ func searchNext() {
 		updateProgress(newOffset)
 
 		// Read a chunk of data from the reader
-		n, err := scanner.Read(buffer)
+		n, err := scanner.Read(buf)
 		if n > 0 {
-			window = append(window, buffer[:n]...)
+			window = append(window, buf[:n]...)
 
 			// Search for the pattern in the current window
-			index := bytes.Index(window, pattern)
+			index := bytes.Index(window, g_searchPattern)
 			if index != -1 {
 				offset = newOffset + int64(index) - int64(len(window)) + int64(n)
-				return
+				return true
 			}
 
 			// Shrink the window to avoid unbounded growth
@@ -159,10 +166,12 @@ func searchNext() {
 
 		// Break the loop if EOF is reached
 		if err != nil {
-			return
+			return false
 		}
 
 		// Update the local offset
 		newOffset += int64(n)
 	}
+
+	return false
 }

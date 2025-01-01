@@ -60,7 +60,7 @@ var (
 
 func findNextData(pos int64) int64 {
 	if !mapReady {
-		return pos
+		return -1
 	}
 
 	for _, r := range sparseMap {
@@ -71,12 +71,12 @@ func findNextData(pos int64) int64 {
 			break
 		}
 	}
-	return pos
+	return -1
 }
 
 func findPrevData(pos int64) int64 {
 	if !mapReady {
-		return pos
+		return -1
 	}
 
 	for i := len(sparseMap) - 1; i >= 0; i-- {
@@ -89,7 +89,7 @@ func findPrevData(pos int64) int64 {
 		}
 	}
 
-	return pos
+	return -1
 }
 
 func draw() {
@@ -267,7 +267,7 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 			} else {
 				// separator already drawn
 				nextData := findNextData(curLineOffset)
-				if nextData != curLineOffset {
+				if nextData != -1 {
 					if curLineOffset%cols == 0 {
 						curLineOffset = nextData - cols
 					} else {
@@ -456,9 +456,13 @@ func handleEvents() {
 					breadcrumbs = append(breadcrumbs, Breadcrumb{offset, tcell.KeyEnd})
 					offset = maxOffset()
 				case 'n':
-					searchNext()
+					if !searchNext() {
+						beep()
+					}
 				case 'N':
-					searchPrev()
+					if !searchPrev() {
+						beep()
+					}
 				case 'w':
 					cols = askInt("width: ", cols)
 				case '/':
@@ -577,6 +581,18 @@ func main() {
 	}
 
 	if len(os.Args) > 2 {
+		for i := 0; i < len(os.Args); i++ {
+			if os.Args[i] == "--debug" {
+				os.Args = append(os.Args[:i], os.Args[i+1:]...)
+				buildSparseMap()
+				fmt.Println("Sparse map:")
+				for i, r := range sparseMap {
+					fmt.Printf("%2x: %12x %12x\n", i, r.start, r.end)
+				}
+				os.Exit(0)
+			}
+		}
+
 		offset, err = strconv.ParseInt(os.Args[2], 16, 64)
 		if err != nil {
 			fmt.Println("Error parsing offset:", err)
@@ -584,7 +600,7 @@ func main() {
 		}
 	}
 
-	go searchHistory.Load()
+	go initSearch()
 
 	offsetWidth = len(fmt.Sprintf("%X", fileSize))
 	if offsetWidth < 8 {
