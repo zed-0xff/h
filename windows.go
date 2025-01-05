@@ -8,6 +8,14 @@ import (
 	"unsafe"
 )
 
+func findHole(fd int, offset int64) int64 {
+	return -1
+}
+
+func findData(fd int, offset int64) int64 {
+	return -1
+}
+
 func getDriveSize(drive string) (int64, error) {
 	// Open a handle to the physical drive
 	handle, err := windows.CreateFile(
