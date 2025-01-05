@@ -48,6 +48,7 @@ var (
 	breadcrumbs     []Breadcrumb
 	skipMap         map[Range]bool = make(map[Range]bool)
 	lastErrMsg      string
+	defaultColsMode int = 0
 
 	sparseMap []Range = make([]Range, 0)
 	mapReady  bool    = false
@@ -434,15 +435,18 @@ func handleEvents() {
 					dir = 1
 					offset = nextOffset
 				case '-':
+					defaultColsMode = 0
 					if cols-int64(elWidth) > 0 {
 						cols -= int64(elWidth)
 						invalidateSkips()
 					}
 				case '+', '=':
+					defaultColsMode = 0
 					cols += int64(elWidth)
 					invalidateSkips()
 				case '0':
 					cols = calcDefaultCols()
+					defaultColsMode = 1 - defaultColsMode
 				case '1', '2', '4', '8':
 					elWidth = int(ev.Rune() - '0')
 				case '9':
@@ -465,6 +469,14 @@ func handleEvents() {
 					}
 				case 'w':
 					cols = askInt("width: ", cols)
+					if cols == 0 {
+						defaultColsMode = 1 - defaultColsMode
+						cols = calcDefaultCols()
+						defaultColsMode = 1 - defaultColsMode
+					}
+					if mode == 0 && cols > int64(scrWidth/3) {
+						mode++
+					}
 				case '/':
 					searchUI()
 				case 'q', 'Q':
@@ -497,7 +509,10 @@ func handleEvents() {
 func calcDefaultCols() int64 {
 	var w int64
 	scrWidth, _ := screen.Size()
-	w = int64(scrWidth)
+	w = 1
+	for w < int64(scrWidth) {
+		w *= 2
+	}
 	data := make([]byte, 0x200)
 	var s string
 	for {
@@ -512,7 +527,11 @@ func calcDefaultCols() int64 {
 		if len(s) <= scrWidth {
 			break
 		}
-		w -= 1
+		if defaultColsMode == 0 {
+			w /= 2
+		} else {
+			w -= 1
+		}
 	}
 	if elWidth == 1 {
 		if w%8 != 0 {
@@ -619,6 +638,7 @@ func main() {
 	defer screen.Fini()
 
 	cols = calcDefaultCols()
+	defaultColsMode = 1 // next mode
 
 	go buildSparseMap()
 
