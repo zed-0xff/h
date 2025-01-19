@@ -591,24 +591,6 @@ func calcDefaultCols() int64 {
 	return w
 }
 
-// TODO: cache?
-func buildSparseMap() {
-	fd := int(reader.Fd())
-	for pos := int64(0); pos < fileSize; {
-		nextHole := findHole(fd, pos)
-		if nextHole == -1 {
-			break
-		}
-		nextData := findData(fd, nextHole)
-		if nextData == -1 {
-			break
-		}
-		sparseMap = append(sparseMap, Range{nextHole, nextData})
-		pos = nextData
-	}
-	mapReady = true
-}
-
 func printLastErr() {
 	if lastErrMsg != "" {
 		fmt.Println(lastErrMsg)

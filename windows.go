@@ -5,16 +5,9 @@ package main
 import (
 	"fmt"
 	"golang.org/x/sys/windows"
+	"syscall"
 	"unsafe"
 )
-
-func findHole(fd int, offset int64) int64 {
-	return -1
-}
-
-func findData(fd int, offset int64) int64 {
-	return -1
-}
 
 func getDriveSize(drive string) (int64, error) {
 	// Open a handle to the physical drive
@@ -66,4 +59,56 @@ func getDriveSize(drive string) (int64, error) {
 	}
 
 	return geometryEx.DiskSize, nil
+}
+
+const FSCTL_QUERY_ALLOCATED_RANGES = 0x940cf
+
+type FILE_ALLOCATED_RANGE_BUFFER struct {
+	FileOffset int64
+	Length     int64
+}
+
+func buildSparseMap() {
+	handle := syscall.Handle(reader.Fd())
+	var input FILE_ALLOCATED_RANGE_BUFFER
+	input.Length = fileSize
+
+	var output [1024]FILE_ALLOCATED_RANGE_BUFFER
+	var bytesReturned uint32
+
+	err := syscall.DeviceIoControl(
+		handle,
+		FSCTL_QUERY_ALLOCATED_RANGES,
+		(*byte)(unsafe.Pointer(&input)),
+		uint32(unsafe.Sizeof(input)),
+		(*byte)(unsafe.Pointer(&output[0])),
+		uint32(len(output))*uint32(unsafe.Sizeof(output[0])),
+		&bytesReturned,
+		nil,
+	)
+	if err != nil {
+		mapReady = false
+		return
+	}
+
+	numRanges := int(bytesReturned) / int(unsafe.Sizeof(output[0]))
+	var lastEnd int64 = 0
+
+	// Iterate through allocated ranges to compute holes
+	for i := 0; i < numRanges; i++ {
+		allocated := output[i]
+		if allocated.FileOffset > lastEnd {
+			// There is a hole before this allocated range
+			sparseMap = append(sparseMap, Range{lastEnd, allocated.FileOffset})
+		}
+		// Update the end of the last processed range
+		lastEnd = allocated.FileOffset + allocated.Length
+	}
+
+	// Check for a hole at the end of the file
+	if lastEnd < fileSize {
+		sparseMap = append(sparseMap, Range{lastEnd, fileSize})
+	}
+
+	mapReady = true
 }
