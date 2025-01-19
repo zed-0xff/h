@@ -368,6 +368,38 @@ func maxOffset() int64 {
 	return max(0, fileSize-fileSize%cols-int64(maxLinesPerPage-1)*cols+add)
 }
 
+func writeFile(fname string, offset int64, size int64) error {
+	file, err := os.Create(fname)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = reader.Seek(offset, 0)
+	if err != nil {
+		return err
+	}
+
+	buf := make([]byte, 8*1024*1024)
+	for size > 0 {
+		n, err := reader.Read(buf)
+		if err != nil {
+			return err
+		}
+		if int64(n) > size {
+			n = int(size)
+		}
+		_, err = file.Write(buf[:n])
+		if err != nil {
+			return err
+		}
+		size -= int64(n)
+	}
+
+	return nil
+
+}
+
 func handleEvents() {
 	for {
 		dir := 0
@@ -476,6 +508,17 @@ func handleEvents() {
 					}
 					if mode == 0 && cols > int64(scrWidth/3) {
 						mode++
+					}
+				case 'W':
+					fname := askString("write to: ", fmt.Sprintf("%0*x.bin", offsetWidth, offset))
+					if fname != "" {
+						size := askHexInt("[hex] size: ", 0x1000)
+						if size > 0 {
+							err := writeFile(fname, offset, size)
+							if err != nil {
+								beep()
+							}
+						}
 					}
 				case '/':
 					searchUI()
