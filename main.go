@@ -244,6 +244,9 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 			drawLine(iLine, make([]byte, 0), curLineOffset)
 			screen.Show()
 			t0 = time.Now()
+			if checkInterrupt() {
+				return curLineOffset
+			}
 		}
 
 		chunks[c] = buf[chunkPos : chunkPos+cols]
