@@ -7,7 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
-    "syscall"
+	"syscall"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -570,6 +570,7 @@ func calcDefaultCols() int64 {
 			s = toHexLine(data, 0, w, elWidth)
 		case 2:
 			s = toAsciiLine(data, w)
+			s = fmt.Sprintf("%0*X: %s", offsetWidth, 0, s)
 		}
 		if len(s) <= scrWidth {
 			break
@@ -580,7 +581,7 @@ func calcDefaultCols() int64 {
 			w -= 1
 		}
 	}
-	if elWidth == 1 {
+	if elWidth == 1 && mode != 2 {
 		if w%8 != 0 {
 			w -= w % 8
 		}
@@ -640,25 +641,25 @@ func main() {
 		reader = NewAlignedReader(file, fileSize, 512)
 	} else {
 		reader = file
-        if isBlockDevice(fname) {
-            fileSize, err = getDeviceSize(fname)
-            if err != nil {
-                panic(err)
-            }
-        } else {
-            fileInfo, err := file.Stat()
-            if err != nil {
-                panic(err)
-            }
-            fileSize = fileInfo.Size()
-        }
+		if isBlockDevice(fname) {
+			fileSize, err = getDeviceSize(fname)
+			if err != nil {
+				panic(err)
+			}
+		} else {
+			fileInfo, err := file.Stat()
+			if err != nil {
+				panic(err)
+			}
+			fileSize = fileInfo.Size()
+		}
 	}
 
 	if len(os.Args) > 2 {
 		for i := 0; i < len(os.Args); i++ {
 			if os.Args[i] == "--debug" {
 				os.Args = append(os.Args[:i], os.Args[i+1:]...)
-                fmt.Println("Size:", fileSize)
+				fmt.Println("Size:", fileSize)
 				buildSparseMap()
 				fmt.Println("Sparse map:")
 				for i, r := range sparseMap {
