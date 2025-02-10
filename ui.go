@@ -16,12 +16,18 @@ func screenCapacity() int64 {
 
 func printAt(x, y int, msg string) {
 	for i, c := range msg {
+		if x+i >= scrWidth {
+			break
+		}
 		screen.SetCell(x+i, y, tcell.StyleDefault, c)
 	}
 }
 
 func printAtEx(x, y int, msg string, styleFunc func(int) tcell.Style) {
 	for i, c := range msg {
+		if x+i >= scrWidth {
+			break
+		}
 		screen.SetCell(x+i, y, styleFunc(i), c)
 	}
 }

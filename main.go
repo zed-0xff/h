@@ -185,6 +185,9 @@ func drawHex(x, y int, buf []byte) int {
 			x++
 		}
 		x++
+		if x >= scrWidth {
+			break
+		}
 	}
 
 	return x
@@ -194,7 +197,7 @@ func drawLine(iLine int, chunk []byte, offset int64) {
 	printAt(0, iLine, fmt.Sprintf("%0*X:", offsetWidth, offset))
 	x := offsetWidth + 2
 
-	ascii := toAsciiLine(chunk, cols)
+	ascii := toAsciiLine(chunk, min(cols, int64(scrWidth)))
 
 	switch mode {
 	case 0:
@@ -203,7 +206,11 @@ func drawLine(iLine int, chunk []byte, offset int64) {
 	case 1:
 		drawHex(x, iLine, chunk)
 	case 2:
-		printAt(scrWidth-int(cols), iLine, ascii)
+		if cols < int64(scrWidth) {
+			printAt(scrWidth-int(cols), iLine, ascii)
+		} else {
+			printAt(offsetWidth+2, iLine, ascii)
+		}
 	}
 }
 
