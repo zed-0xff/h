@@ -30,7 +30,8 @@ type Reader interface {
 	Fd() uintptr
 }
 
-const maxMode = 2
+const MaxMode = 3
+const TextMode = 3
 
 var (
 	screen          tcell.Screen
@@ -197,28 +198,43 @@ func drawLine(iLine int, chunk []byte, offset int64) {
 	printAt(0, iLine, fmt.Sprintf("%0*X:", offsetWidth, offset))
 	x := offsetWidth + 2
 
-	ascii := toAsciiLine(chunk, min(cols, int64(scrWidth)))
-
 	switch mode {
 	case 0:
+		// hex + ascii
 		drawHex(x, iLine, chunk)
+		ascii := toAsciiLine(chunk, min(cols, int64(scrWidth)))
 		printAt(scrWidth-int(cols), iLine, ascii)
 	case 1:
+		// hex only
 		drawHex(x, iLine, chunk)
 	case 2:
+		// ascii only
+		ascii := toAsciiLine(chunk, min(cols, int64(scrWidth)))
 		if cols < int64(scrWidth) {
 			printAt(scrWidth-int(cols), iLine, ascii)
 		} else {
 			printAt(offsetWidth+2, iLine, ascii)
 		}
+	case 3:
+		// text
+		ascii := toAsciiLine(chunk, int64(scrWidth)-2-int64(offsetWidth))
+		printAt(offsetWidth+2, iLine, ascii)
 	}
 }
 
 func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 	var chunkPos int64
-	t0 := time.Now()
+	var bufSize int
 
-	bufSize := int(cols) * maxLines
+	t0 := time.Now()
+	scrWidth, _ = screen.Size() // Get the screen width before drawing the lines
+	maxTextCols := scrWidth - 2 - offsetWidth
+
+	if mode == TextMode {
+		bufSize = maxTextCols * maxLines
+	} else {
+		bufSize = int(cols) * maxLines
+	}
 	var buf = make([]byte, bufSize)
 
 	curLineOffset := offset
@@ -231,17 +247,28 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 	}
 
 	chunks := make([][]byte, 2) // Create a slice of 2 elements, each of which will be a byte slice
-	for i := range chunks {
-		chunks[i] = make([]byte, cols) // Create each chunk as a byte slice of length cols
-	}
 	c := 0
 
-	chunks[c] = buf[0:cols]
+	if mode == TextMode {
+		for i := range chunks {
+			chunks[i] = make([]byte, maxTextCols) // Create each chunk as a byte slice of length maxTextCols
+		}
+		nlPos := bytes.IndexAny(buf, "\r\n")
+		if nlPos == -1 {
+			nlPos = maxTextCols
+		}
+		chunks[c] = buf[0:nlPos]
+		chunkPos = int64(nlPos)
+	} else {
+		for i := range chunks {
+			chunks[i] = make([]byte, cols) // Create each chunk as a byte slice of length cols
+		}
+		chunks[c] = buf[0:cols]
+		chunkPos = cols
+	}
 
-	scrWidth, _ = screen.Size() // Get the screen width before drawing the lines
-	chunkPos = cols
 	drawLine(0, chunks[c], curLineOffset)
-	curLineOffset += cols
+	curLineOffset += int64(len(chunks[c]))
 	was_separator := false
 	c = 1 - c
 	iLine := 1
@@ -257,8 +284,22 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 			}
 		}
 
-		chunks[c] = buf[chunkPos : chunkPos+cols]
-		if !g_dedup || !bytes.Equal(chunks[c], chunks[1-c]) {
+		if mode == TextMode {
+			for buf[chunkPos] == '\r' || buf[chunkPos] == '\n' {
+				chunkPos++
+				curLineOffset++
+			}
+			nlPos := bytes.IndexAny(buf[chunkPos:], "\r\n")
+			if nlPos == -1 {
+				nlPos = maxTextCols
+			}
+			chunks[c] = buf[chunkPos : chunkPos+int64(nlPos)]
+		} else {
+			chunks[c] = buf[chunkPos : chunkPos+cols]
+		}
+
+		if !g_dedup || mode == TextMode || !bytes.Equal(chunks[c], chunks[1-c]) {
+			// no dedup for this line or at all
 			if was_separator {
 				was_separator = false
 				curSkip.end = curLineOffset
@@ -267,7 +308,18 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 			}
 
 			drawLine(iLine, chunks[c], curLineOffset)
+
 			iLine++
+			curLineOffset += int64(len(chunks[c]))
+			chunkPos += int64(len(chunks[c]))
+
+			if mode == TextMode {
+				for buf[chunkPos] == '\r' || buf[chunkPos] == '\n' {
+					chunkPos++
+					curLineOffset++
+				}
+			}
+
 			c = 1 - c
 		} else {
 			// cur line equals to previous and dedup is on
@@ -288,9 +340,9 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 					chunkPos = int64(nRead) // force read
 				}
 			}
+			curLineOffset += cols
+			chunkPos += cols
 		}
-		curLineOffset += cols
-		chunkPos += cols
 
 		if chunkPos >= int64(nRead) {
 			// Copy the previous chunk, because reading into buf will change its contents, and it will break lines deduplication
@@ -465,7 +517,7 @@ func handleEvents() {
 				}
 			case tcell.KeyTab:
 				mode += 1
-				if mode > maxMode {
+				if mode > MaxMode {
 					mode = 0
 				}
 			case tcell.KeyEsc, tcell.KeyCtrlC:
