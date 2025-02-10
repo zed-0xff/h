@@ -344,7 +344,7 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 			chunkPos += cols
 		}
 
-		if chunkPos >= int64(nRead) {
+		if chunkPos >= int64(nRead) || (mode == TextMode && chunkPos+int64(maxTextCols) >= int64(nRead)) {
 			// Copy the previous chunk, because reading into buf will change its contents, and it will break lines deduplication
 			chunks[1-c] = append([]byte(nil), chunks[1-c]...)
 			nRead, err = f.ReadAt(buf, curLineOffset)
