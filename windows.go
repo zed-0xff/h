@@ -9,7 +9,7 @@ import (
 	"unsafe"
 )
 
-func getDriveSize(drive string) (int64, error) {
+func getDeviceSize(drive string) (int64, error) {
 	// Open a handle to the physical drive
 	handle, err := windows.CreateFile(
 		windows.StringToUTF16Ptr(drive),

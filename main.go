@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+    "syscall"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -597,6 +598,25 @@ func printLastErr() {
 	}
 }
 
+func isBlockDevice(path string) bool {
+	// Get the file information using Lstat
+	fileInfo, err := os.Lstat(path)
+	if err != nil {
+		panic(err)
+	}
+
+	// Check if the mode is a device (block or character)
+	if fileInfo.Mode()&os.ModeDevice != 0 {
+		// Check if it's a block device specifically
+		stat := fileInfo.Sys().(*syscall.Stat_t)
+		if stat.Mode&syscall.S_IFBLK != 0 {
+			return true
+		}
+	}
+
+	return false
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: hexdump <file>")
@@ -613,24 +633,32 @@ func main() {
 	defer file.Close()
 
 	if strings.HasPrefix(fname, "\\\\.\\PhysicalDrive") {
-		fileSize, err = getDriveSize(fname)
+		fileSize, err = getDeviceSize(fname)
 		if err != nil {
 			panic(err)
 		}
 		reader = NewAlignedReader(file, fileSize, 512)
 	} else {
 		reader = file
-		fileInfo, err := file.Stat()
-		if err != nil {
-			panic(err)
-		}
-		fileSize = fileInfo.Size()
+        if isBlockDevice(fname) {
+            fileSize, err = getDeviceSize(fname)
+            if err != nil {
+                panic(err)
+            }
+        } else {
+            fileInfo, err := file.Stat()
+            if err != nil {
+                panic(err)
+            }
+            fileSize = fileInfo.Size()
+        }
 	}
 
 	if len(os.Args) > 2 {
 		for i := 0; i < len(os.Args); i++ {
 			if os.Args[i] == "--debug" {
 				os.Args = append(os.Args[:i], os.Args[i+1:]...)
+                fmt.Println("Size:", fileSize)
 				buildSparseMap()
 				fmt.Println("Sparse map:")
 				for i, r := range sparseMap {
