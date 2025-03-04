@@ -583,8 +583,8 @@ func handleEvents() {
 							}
 						}
 					}
-				case '/':
-					searchUI()
+				case '/', '?':
+					searchUI(ev.Rune() == '/')
 				case 'q', 'Q':
 					return
 				}
