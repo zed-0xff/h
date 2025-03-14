@@ -61,6 +61,10 @@ func getDeviceSize(drive string) (int64, error) {
 	return geometryEx.DiskSize, nil
 }
 
+func isBlockDevice(path string) bool {
+	return false
+}
+
 const FSCTL_QUERY_ALLOCATED_RANGES = 0x940cf
 
 type FILE_ALLOCATED_RANGE_BUFFER struct {

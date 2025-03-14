@@ -7,7 +7,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -656,25 +655,6 @@ func printLastErr() {
 	if lastErrMsg != "" {
 		fmt.Println(lastErrMsg)
 	}
-}
-
-func isBlockDevice(path string) bool {
-	// Get the file information using Lstat
-	fileInfo, err := os.Lstat(path)
-	if err != nil {
-		panic(err)
-	}
-
-	// Check if the mode is a device (block or character)
-	if fileInfo.Mode()&os.ModeDevice != 0 {
-		// Check if it's a block device specifically
-		stat := fileInfo.Sys().(*syscall.Stat_t)
-		if stat.Mode&syscall.S_IFBLK != 0 {
-			return true
-		}
-	}
-
-	return false
 }
 
 func main() {
