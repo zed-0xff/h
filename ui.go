@@ -155,6 +155,16 @@ func checkInterrupt() bool {
 	return false
 }
 
+func waitForAnyKey() {
+	for {
+		ev := screen.PollEvent()
+		switch ev.(type) {
+		case *tcell.EventKey:
+			return
+		}
+	}
+}
+
 var g_searchMode = 0
 
 func askSearchPattern(pattern0 []byte) []byte {
@@ -217,5 +227,14 @@ func askSearchPattern(pattern0 []byte) []byte {
 			// unexpected key
 			return nil
 		}
+	}
+}
+
+func showError(err error) {
+	if err != nil {
+		printAt(0, maxLinesPerPage, fmt.Sprintf("error: %v", err))
+		screen.Show()
+		beep()
+		waitForAnyKey()
 	}
 }

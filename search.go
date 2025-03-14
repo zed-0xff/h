@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"strings"
 )
@@ -127,14 +126,13 @@ func searchPrev() bool {
 	}
 }
 
+// don't use bufio.NewReader bc it fails to work with PhysicalDrives on windows
 func searchNext() bool {
 	buf := make([]byte, bufSize)
 	patLen := len(g_searchPattern)
 	window := make([]byte, 0)
 
 	newOffset := offset + 1
-	reader.Seek(newOffset, 0)
-	scanner := bufio.NewReader(reader)
 	resetProgress()
 	for newOffset < fileSize {
 		if checkInterrupt() {
@@ -144,14 +142,11 @@ func searchNext() bool {
 		skipOffset := findNextData(newOffset) // skip sparse regions
 		if skipOffset != -1 {
 			newOffset = skipOffset
-			reader.Seek(newOffset, 0)
-			scanner.Reset(reader)
 			window = make([]byte, 0)
 		}
 		updateProgress(newOffset)
 
-		// Read a chunk of data from the reader
-		n, err := scanner.Read(buf)
+		n, err := reader.ReadAt(buf, newOffset)
 		if n > 0 {
 			window = append(window, buf[:n]...)
 
@@ -170,6 +165,9 @@ func searchNext() bool {
 
 		// Break the loop if EOF is reached
 		if err != nil {
+			if err.Error() != "EOF" {
+				showError(err)
+			}
 			return false
 		}
 
