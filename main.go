@@ -313,7 +313,7 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 			chunkPos += int64(len(chunks[c]))
 
 			if mode == TextMode {
-				for buf[chunkPos] == '\r' || buf[chunkPos] == '\n' {
+				for chunkPos < int64(len(buf)) && (buf[chunkPos] == '\r' || buf[chunkPos] == '\n') {
 					chunkPos++
 					curLineOffset++
 				}
