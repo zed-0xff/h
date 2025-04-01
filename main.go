@@ -12,11 +12,12 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-type Radix int
+type RadixMode int
 
 const (
-	RadixHex Radix = iota
-	RadixBin
+	NumModeHex RadixMode = iota
+	NumModeBin01
+	NumModeBinX
 )
 
 type Range struct {
@@ -40,7 +41,7 @@ const MaxMode = 3
 const TextMode = 3
 
 var (
-	radix           = RadixHex
+	numMode         = NumModeHex
 	screen          tcell.Screen
 	reader          Reader
 	fileSize        int64
@@ -153,16 +154,18 @@ func toHexChar(c byte) byte {
 //}
 
 func drawNums(x, y int, buf []byte) {
-	switch radix {
-	case RadixHex:
+	switch numMode {
+	case NumModeHex:
 		drawHex(x, y, buf)
-	case RadixBin:
-		drawBin(x, y, buf)
+	case NumModeBin01:
+		drawBin(x, y, buf, []rune{'0', '1'})
+	case NumModeBinX:
+		drawBin(x, y, buf, []rune{'_', 'X'})
 	}
 
 }
 
-func drawBin(x, y int, buf []byte) {
+func drawBin(x, y int, buf []byte, chars []rune) {
 	stGray := tcell.StyleDefault.Foreground(tcell.NewRGBColor(0x30, 0x30, 0x30))
 
 	for j := 0; j < len(buf); j += elWidth {
@@ -181,7 +184,7 @@ func drawBin(x, y int, buf []byte) {
 			for i := 0; i < 8; i++ {
 				st := tcell.StyleDefault
 				bit := byte & mask
-				rune := '_'
+				rune := chars[0]
 
 				if bit == 0 {
 					if leadingZero {
@@ -189,7 +192,7 @@ func drawBin(x, y int, buf []byte) {
 					}
 				} else {
 					//leadingZero = false
-					rune = 'X'
+					rune = chars[1]
 				}
 
 				screen.SetCell(x, y, st, rune)
@@ -609,8 +612,14 @@ func handleEvents() {
 					defaultColsMode = 1 - defaultColsMode
 				case '1', '2', '4', '8':
 					elWidth = int(ev.Rune() - '0')
+
 				case 'b':
-					radix = 1 - radix
+					numMode = NumModeBinX
+				case 'B':
+					numMode = NumModeBin01
+				case 'h':
+					numMode = NumModeHex
+
 				case '9':
 					elWidth = 0x10
 				case 'd':
