@@ -530,12 +530,20 @@ func handleEvents() {
 			case tcell.KeyLeft:
 				breadcrumbs = append(breadcrumbs, Breadcrumb{offset, ev.Key()})
 				dir = -1
-				offset -= int64(elWidth)
+				if ev.Modifiers() == tcell.ModShift {
+					offset -= 1
+				} else {
+					offset -= int64(elWidth)
+				}
 				invalidateSkips()
 			case tcell.KeyRight:
 				breadcrumbs = append(breadcrumbs, Breadcrumb{offset, ev.Key()})
 				dir = 1
-				offset += int64(elWidth)
+				if ev.Modifiers() == tcell.ModShift {
+					offset += 1
+				} else {
+					offset += int64(elWidth)
+				}
 				invalidateSkips()
 			case tcell.KeyDown:
 				breadcrumbs = append(breadcrumbs, Breadcrumb{offset, ev.Key()})
