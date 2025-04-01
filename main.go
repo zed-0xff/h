@@ -12,6 +12,13 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
+type Radix int
+
+const (
+	RadixHex Radix = iota
+	RadixBin
+)
+
 type Range struct {
 	start int64
 	end   int64
@@ -33,6 +40,7 @@ const MaxMode = 3
 const TextMode = 3
 
 var (
+	radix           = RadixHex
 	screen          tcell.Screen
 	reader          Reader
 	fileSize        int64
@@ -144,7 +152,59 @@ func toHexChar(c byte) byte {
 //	}
 //}
 
-func drawHex(x, y int, buf []byte) int {
+func drawNums(x, y int, buf []byte) {
+	switch radix {
+	case RadixHex:
+		drawHex(x, y, buf)
+	case RadixBin:
+		drawBin(x, y, buf)
+	}
+
+}
+
+func drawBin(x, y int, buf []byte) {
+	stGray := tcell.StyleDefault.Foreground(tcell.NewRGBColor(0x30, 0x30, 0x30))
+
+	for j := 0; j < len(buf); j += elWidth {
+		if elWidth == 1 && j > 0 && j%(8*elWidth) == 0 { // Add an extra space every 8 groups
+			x++
+		}
+
+		leadingZero := true
+		for k := elWidth - 1; k >= 0; k-- {
+			if j+k >= len(buf) {
+				continue
+			}
+			mask := byte(0x80)
+			byte := buf[j+k]
+
+			for i := 0; i < 8; i++ {
+				st := tcell.StyleDefault
+				bit := byte & mask
+				rune := '_'
+
+				if bit == 0 {
+					if leadingZero {
+						st = stGray
+					}
+				} else {
+					//leadingZero = false
+					rune = 'X'
+				}
+
+				screen.SetCell(x, y, st, rune)
+				x++
+				mask >>= 1
+			}
+		}
+		x++
+		if x >= scrWidth {
+			break
+		}
+	}
+}
+
+func drawHex(x, y int, buf []byte) {
 	stGray := tcell.StyleDefault.Foreground(tcell.NewRGBColor(0x30, 0x30, 0x30))
 
 	for j := 0; j < len(buf); j += elWidth {
@@ -189,8 +249,6 @@ func drawHex(x, y int, buf []byte) int {
 			break
 		}
 	}
-
-	return x
 }
 
 func drawLine(iLine int, chunk []byte, offset int64) {
@@ -200,12 +258,12 @@ func drawLine(iLine int, chunk []byte, offset int64) {
 	switch mode {
 	case 0:
 		// hex + ascii
-		drawHex(x, iLine, chunk)
+		drawNums(x, iLine, chunk)
 		ascii := toAsciiLine(chunk, min(cols, int64(scrWidth)))
 		printAt(scrWidth-int(cols), iLine, ascii)
 	case 1:
 		// hex only
-		drawHex(x, iLine, chunk)
+		drawNums(x, iLine, chunk)
 	case 2:
 		// ascii only
 		ascii := toAsciiLine(chunk, min(cols, int64(scrWidth)))
@@ -543,6 +601,8 @@ func handleEvents() {
 					defaultColsMode = 1 - defaultColsMode
 				case '1', '2', '4', '8':
 					elWidth = int(ev.Rune() - '0')
+				case 'b':
+					radix = 1 - radix
 				case '9':
 					elWidth = 0x10
 				case 'd':
