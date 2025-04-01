@@ -580,7 +580,7 @@ func handleEvents() {
 					offset = breadcrumbs[len(breadcrumbs)-1].offset
 					breadcrumbs = breadcrumbs[:len(breadcrumbs)-1]
 				}
-			case tcell.KeyTab:
+			case tcell.KeyTab, tcell.KeyEnter:
 				mode += 1
 				if mode > MaxMode {
 					mode = 0
