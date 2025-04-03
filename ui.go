@@ -129,6 +129,7 @@ func askHexInt(prompt string, curValue int64) int64 {
 	if str == "" {
 		return curValue
 	}
+	str = strings.TrimPrefix(strings.ToLower(str), "0x")
 	n, err := strconv.ParseInt(str, 16, 64)
 	if err != nil {
 		beep()

@@ -773,7 +773,9 @@ func main() {
 			}
 		}
 
-		offset, err = strconv.ParseInt(os.Args[2], 16, 64)
+		str := os.Args[2]
+		str = strings.TrimPrefix(strings.ToLower(str), "0x")
+		offset, err = strconv.ParseInt(str, 16, 64)
 		if err != nil {
 			fmt.Println("Error parsing offset:", err)
 			return
