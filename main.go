@@ -603,9 +603,19 @@ func handleEvents() {
 						cols -= int64(elWidth)
 						invalidateSkips()
 					}
-				case '+', '=':
+				case '_':
+					defaultColsMode = 0
+					if cols > 1 {
+						cols /= 2
+						invalidateSkips()
+					}
+				case '=':
 					defaultColsMode = 0
 					cols += int64(elWidth)
+					invalidateSkips()
+				case '+':
+					defaultColsMode = 0
+					cols *= 2
 					invalidateSkips()
 				case '0':
 					cols = calcDefaultCols()
