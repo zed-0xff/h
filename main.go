@@ -12,12 +12,18 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-type RadixMode int
+type DisplayMode int
 
 const (
-	NumModeHex RadixMode = iota
+	NumModeHex DisplayMode = iota
 	NumModeBin01
 	NumModeBinX
+)
+
+const (
+	DispModeDump = iota
+	DispModeText
+	DispModeMax = DispModeText
 )
 
 type Range struct {
@@ -41,15 +47,19 @@ const MaxMode = 3
 const TextMode = 3
 
 var (
+	showBin   bool = false
+	showHex   bool = true
+	showASCII bool = true
+
+	dispMode        = DispModeDump
 	numMode         = NumModeHex
 	screen          tcell.Screen
 	reader          Reader
 	fileSize        int64
 	offset          int64
 	offsetWidth     int
-	elWidth         int = 1
-	cols            int64
-	mode            int = 0
+	elWidth         int   = 1
+	cols            int64 = 0
 	maxLinesPerPage int
 	nextOffset      int64
 	scrWidth        int
@@ -134,38 +144,7 @@ func toHexChar(c byte) byte {
 	}
 }
 
-//func colorTable() {
-//	if a < 0 {
-//		a = 0
-//	}
-//	if b < 0 {
-//		b = 0
-//	}
-//	w, h := screen.Size()
-//	for y := 0; y < h; y++ {
-//		for x := 0; x < w; x += 4 {
-//			value := x/2*a + y*b + z
-//			text := fmt.Sprintf("%04x", ((value) & 0xffff))
-//			for i, c := range text {
-//				termbox.SetCell(x+i, y, c, termbox.Attribute((value)&0x7fff), termbox.ColorDefault)
-//			}
-//		}
-//	}
-//}
-
-func drawNums(x, y int, buf []byte) {
-	switch numMode {
-	case NumModeHex:
-		drawHex(x, y, buf)
-	case NumModeBin01:
-		drawBin(x, y, buf, []rune{'0', '1'})
-	case NumModeBinX:
-		drawBin(x, y, buf, []rune{'_', 'X'})
-	}
-
-}
-
-func drawBin(x, y int, buf []byte, chars []rune) {
+func drawBin(x, y int, buf []byte, chars []rune, max_width int) int {
 	stGray := tcell.StyleDefault.Foreground(tcell.NewRGBColor(0x30, 0x30, 0x30))
 
 	for j := 0; j < len(buf); j += elWidth {
@@ -201,13 +180,14 @@ func drawBin(x, y int, buf []byte, chars []rune) {
 			}
 		}
 		x++
-		if x >= scrWidth {
+		if x >= max_width {
 			break
 		}
 	}
+	return x
 }
 
-func drawHex(x, y int, buf []byte) {
+func drawHex(x, y int, buf []byte, max_width int) int {
 	stGray := tcell.StyleDefault.Foreground(tcell.NewRGBColor(0x30, 0x30, 0x30))
 
 	for j := 0; j < len(buf); j += elWidth {
@@ -248,38 +228,46 @@ func drawHex(x, y int, buf []byte) {
 			x++
 		}
 		x++
-		if x >= scrWidth {
+		if x >= max_width {
 			break
 		}
 	}
+	return x
 }
 
-func drawLine(iLine int, chunk []byte, offset int64) {
+func drawLine(iLine int, chunk []byte, offset int64) int {
+	return drawLine2(iLine, chunk, offset, scrWidth)
+}
+
+// also used for calculating max width
+func drawLine2(iLine int, chunk []byte, offset int64, max_width int) int {
 	printAt(0, iLine, fmt.Sprintf("%0*X:", offsetWidth, offset))
 	x := offsetWidth + 2
 
-	switch mode {
-	case 0:
-		// hex + ascii
-		drawNums(x, iLine, chunk)
-		ascii := toAsciiLine(chunk, min(cols, int64(scrWidth)))
-		printAt(scrWidth-int(cols), iLine, ascii)
-	case 1:
-		// hex only
-		drawNums(x, iLine, chunk)
-	case 2:
-		// ascii only
-		ascii := toAsciiLine(chunk, min(cols, int64(scrWidth)))
-		if cols < int64(scrWidth) {
-			printAt(scrWidth-int(cols), iLine, ascii)
-		} else {
-			printAt(offsetWidth+2, iLine, ascii)
+	if showBin {
+		x = drawBin(x, iLine, chunk, []rune{'_', 'X'}, max_width) + 1
+		if x >= max_width {
+			return x
 		}
-	case 3:
-		// text
-		ascii := toAsciiLine(chunk, int64(scrWidth)-2-int64(offsetWidth))
-		printAt(offsetWidth+2, iLine, ascii)
 	}
+
+	if showHex {
+		x = drawHex(x, iLine, chunk, max_width) + 1
+		if x >= max_width {
+			return x
+		}
+	}
+
+	if showASCII {
+		ascii := toAsciiLine(chunk, min(cols, int64(max_width)))
+		if cols < int64(max_width) && (showBin || showHex) {
+			printAt(max_width-int(cols), iLine, ascii)
+		} else {
+			printAt(x, iLine, ascii)
+		}
+		x += len(ascii) + 1
+	}
+	return x
 }
 
 func fileHexDump(f io.ReaderAt, maxLines int) int64 {
@@ -290,7 +278,7 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 	scrWidth, _ = screen.Size() // Get the screen width before drawing the lines
 	maxTextCols := scrWidth - 2 - offsetWidth
 
-	if mode == TextMode {
+	if dispMode == DispModeText {
 		bufSize = maxTextCols * maxLines
 	} else {
 		bufSize = int(cols) * maxLines
@@ -309,7 +297,7 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 	chunks := make([][]byte, 2) // Create a slice of 2 elements, each of which will be a byte slice
 	c := 0
 
-	if mode == TextMode {
+	if dispMode == DispModeText {
 		for i := range chunks {
 			chunks[i] = make([]byte, maxTextCols) // Create each chunk as a byte slice of length maxTextCols
 		}
@@ -344,7 +332,7 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 			}
 		}
 
-		if mode == TextMode {
+		if dispMode == DispModeText {
 			for buf[chunkPos] == '\r' || buf[chunkPos] == '\n' {
 				chunkPos++
 				curLineOffset++
@@ -358,7 +346,7 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 			chunks[c] = buf[chunkPos : chunkPos+cols]
 		}
 
-		if !g_dedup || mode == TextMode || !bytes.Equal(chunks[c], chunks[1-c]) {
+		if !g_dedup || dispMode == DispModeText || !bytes.Equal(chunks[c], chunks[1-c]) {
 			// no dedup for this line or at all
 			if was_separator {
 				was_separator = false
@@ -373,7 +361,7 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 			curLineOffset += int64(len(chunks[c]))
 			chunkPos += int64(len(chunks[c]))
 
-			if mode == TextMode {
+			if dispMode == DispModeText {
 				for chunkPos < int64(len(buf)) && (buf[chunkPos] == '\r' || buf[chunkPos] == '\n') {
 					chunkPos++
 					curLineOffset++
@@ -404,7 +392,7 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 			chunkPos += cols
 		}
 
-		if chunkPos >= int64(nRead) || (mode == TextMode && chunkPos+int64(maxTextCols) >= int64(nRead)) {
+		if chunkPos >= int64(nRead) || (dispMode == DispModeText && chunkPos+int64(maxTextCols) >= int64(nRead)) {
 			// Copy the previous chunk, because reading into buf will change its contents, and it will break lines deduplication
 			chunks[1-c] = append([]byte(nil), chunks[1-c]...)
 			nRead, err = f.ReadAt(buf, curLineOffset)
@@ -584,9 +572,9 @@ func handleEvents() {
 					breadcrumbs = breadcrumbs[:len(breadcrumbs)-1]
 				}
 			case tcell.KeyTab, tcell.KeyEnter:
-				mode += 1
-				if mode > MaxMode {
-					mode = 0
+				dispMode += 1
+				if dispMode > DispModeMax {
+					dispMode = 0
 				}
 			case tcell.KeyEsc, tcell.KeyCtrlC:
 				return
@@ -618,17 +606,17 @@ func handleEvents() {
 					cols *= 2
 					invalidateSkips()
 				case '0':
-					cols = calcDefaultCols()
+					calcDefaultCols()
 					defaultColsMode = 1 - defaultColsMode
 				case '1', '2', '4', '8':
 					elWidth = int(ev.Rune() - '0')
 
+				case 'a':
+					showASCII = !showASCII
 				case 'b':
-					numMode = NumModeBinX
-				case 'B':
-					numMode = NumModeBin01
+					showBin = !showBin
 				case 'h':
-					numMode = NumModeHex
+					showHex = !showHex
 
 				case '9':
 					elWidth = 0x10
@@ -653,11 +641,8 @@ func handleEvents() {
 					cols = askInt("width: ", cols)
 					if cols == 0 {
 						defaultColsMode = 1 - defaultColsMode
-						cols = calcDefaultCols()
+						calcDefaultCols()
 						defaultColsMode = 1 - defaultColsMode
-					}
-					if mode == 0 && cols > int64(scrWidth/3) {
-						mode++
 					}
 				case 'W':
 					fname := askString("write to: ", fmt.Sprintf("%0*x.bin", offsetWidth, offset))
@@ -699,44 +684,36 @@ func handleEvents() {
 	}
 }
 
-func calcDefaultCols() int64 {
-	var w int64
+func calcDefaultCols() {
 	scrWidth, _ := screen.Size()
-	w = 1
-	for w < int64(scrWidth) {
-		w *= 2
+	max_w := 1
+
+	for max_w < scrWidth {
+		max_w *= 2
 	}
-	data := make([]byte, 0x200)
-	var s string
-	for {
-		switch mode {
-		case 0:
-			s = toHexLine(data, 0, w, elWidth) + toAsciiLine(data, w)
-		case 1:
-			s = toHexLine(data, 0, w, elWidth)
-		case 2:
-			s = toAsciiLine(data, w)
-			s = fmt.Sprintf("%0*X: %s", offsetWidth, 0, s)
-		}
-		if len(s) <= scrWidth {
+	data := make([]byte, max_w*2)
+	for i := 0; i < 0x1000 && max_w > 1; i++ { // prevent infinite loop
+		cols = int64(max_w) // XXX drawLine2 ASCII output uses that
+
+		w := drawLine2(-1, data[:max_w], 0, len(data))
+		if w <= scrWidth {
 			break
 		}
 		if defaultColsMode == 0 {
-			w /= 2
+			max_w /= 2
 		} else {
-			w -= 1
+			max_w -= 1
 		}
 	}
-	if elWidth == 1 && mode != 2 {
-		if w%8 != 0 {
-			w -= w % 8
-		}
-	} else {
-		if w%int64(elWidth) != 0 {
-			w -= w % int64(elWidth)
-		}
+
+	if max_w%elWidth != 0 {
+		max_w -= max_w % elWidth
 	}
-	return w
+	if max_w < 1 {
+		max_w = 1
+	}
+
+	cols = int64(max_w)
 }
 
 func printLastErr() {
@@ -821,7 +798,7 @@ func main() {
 	}
 	defer screen.Fini()
 
-	cols = calcDefaultCols()
+	calcDefaultCols()
 	defaultColsMode = 1 // next mode
 
 	go buildSparseMap()
