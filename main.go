@@ -635,8 +635,9 @@ func handleEvents() {
 				case 'd':
 					g_dedup = !g_dedup
 				case 'g':
-					breadcrumbs = append(breadcrumbs, Breadcrumb{offset, tcell.KeyHome})
-					offset = 0
+					offset = askHexInt("[hex] offset: ", offset)
+					//breadcrumbs = append(breadcrumbs, Breadcrumb{offset, tcell.KeyHome})
+					//offset = 0
 				case 'G':
 					breadcrumbs = append(breadcrumbs, Breadcrumb{offset, tcell.KeyEnd})
 					offset = maxOffset()
