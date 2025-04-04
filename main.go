@@ -51,6 +51,7 @@ var (
 	showHex   bool = true
 	showASCII bool = true
 
+	binMode01       = false
 	dispMode        = DispModeDump
 	numMode         = NumModeHex
 	screen          tcell.Screen
@@ -245,7 +246,12 @@ func drawLine2(iLine int, chunk []byte, offset int64, max_width int) int {
 	x := offsetWidth + 2
 
 	if showBin {
-		x = drawBin(x, iLine, chunk, []rune{'_', 'X'}, max_width) + 1
+		if binMode01 {
+			x = drawBin(x, iLine, chunk, []rune{'0', '1'}, max_width) + 1
+		} else {
+			x = drawBin(x, iLine, chunk, []rune{'_', 'X'}, max_width) + 1
+		}
+
 		if x >= max_width {
 			return x
 		}
@@ -615,6 +621,8 @@ func handleEvents() {
 					showASCII = !showASCII
 				case 'b':
 					showBin = !showBin
+				case 'B':
+					binMode01 = !binMode01
 				case 'h':
 					showHex = !showHex
 
