@@ -480,7 +480,7 @@ func invalidateSkips() {
 	skipMap = make(map[Range]bool)
 }
 
-func maxOffset() int64 {
+func lastPageOffset() int64 {
 	add := offset % cols
 	return max(0, fileSize-fileSize%cols-int64(maxLinesPerPage-1)*cols+add)
 }
@@ -571,7 +571,7 @@ func handleEvents() {
 				offset = 0
 			case tcell.KeyEnd:
 				breadcrumbs = append(breadcrumbs, Breadcrumb{offset, ev.Key()})
-				offset = maxOffset()
+				offset = lastPageOffset()
 			case tcell.KeyBackspace, tcell.KeyBackspace2:
 				if len(breadcrumbs) > 0 {
 					offset = breadcrumbs[len(breadcrumbs)-1].offset
@@ -636,7 +636,7 @@ func handleEvents() {
 					//offset = 0
 				case 'G':
 					breadcrumbs = append(breadcrumbs, Breadcrumb{offset, tcell.KeyEnd})
-					offset = maxOffset()
+					offset = lastPageOffset()
 				case 'n':
 					if !searchNext() {
 						beep()
@@ -684,8 +684,8 @@ func handleEvents() {
 			}
 			if offset < 0 {
 				offset = 0
-			} else if offset >= maxOffset() {
-				offset = maxOffset()
+			} else if offset > fileSize {
+				offset = fileSize
 			}
 			draw()
 		}
