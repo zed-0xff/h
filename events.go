@@ -155,7 +155,7 @@ func handleEvents() {
 						showBin = !showBin
 					case 'B':
 						binMode01 = !binMode01
-					case 'c':
+					case 'c', 'w':
 						cols = askInt("cols: ", cols)
 						if cols == 0 {
 							defaultColsMode = 1 - defaultColsMode
