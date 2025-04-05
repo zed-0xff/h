@@ -155,6 +155,13 @@ func handleEvents() {
 						showBin = !showBin
 					case 'B':
 						binMode01 = !binMode01
+					case 'c':
+						cols = askInt("cols: ", cols)
+						if cols == 0 {
+							defaultColsMode = 1 - defaultColsMode
+							calcDefaultCols()
+							defaultColsMode = 1 - defaultColsMode
+						}
 					case 'h':
 						showHex = !showHex
 
@@ -181,13 +188,6 @@ func handleEvents() {
 						pageSize = askInt("page size (0 = auto): ", pageSize)
 					case 'q', 'Q':
 						return
-					case 'w':
-						cols = askInt("width: ", cols)
-						if cols == 0 {
-							defaultColsMode = 1 - defaultColsMode
-							calcDefaultCols()
-							defaultColsMode = 1 - defaultColsMode
-						}
 					case 'W':
 						fname := askString("write to: ", fmt.Sprintf("%0*x.bin", offsetWidth, offset))
 						if fname != "" {

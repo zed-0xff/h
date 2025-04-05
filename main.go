@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -587,12 +586,7 @@ func shortenFName(fname string, max_len int) string {
 }
 
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Println("Usage: hexdump <file>")
-		return
-	}
-
-	fname = os.Args[1]
+	processFlags()
 
 	file, err := os.Open(fname)
 	if err != nil {
@@ -623,29 +617,6 @@ func main() {
 		}
 	}
 
-	if len(os.Args) > 2 {
-		for i := 0; i < len(os.Args); i++ {
-			if os.Args[i] == "--debug" {
-				os.Args = append(os.Args[:i], os.Args[i+1:]...)
-				fmt.Println("Size:", fileSize)
-				buildSparseMap()
-				fmt.Println("Sparse map:")
-				for i, r := range sparseMap {
-					fmt.Printf("%2x: %12x %12x\n", i, r.start, r.end)
-				}
-				os.Exit(0)
-			}
-		}
-
-		str := os.Args[2]
-		str = strings.TrimPrefix(strings.ToLower(str), "0x")
-		offset, err = strconv.ParseInt(str, 16, 64)
-		if err != nil {
-			fmt.Println("Error parsing offset:", err)
-			return
-		}
-	}
-
 	go initSearch()
 
 	offsetWidth = len(fmt.Sprintf("%X", fileSize))
@@ -664,7 +635,9 @@ func main() {
 	}
 	defer screen.Fini()
 
-	calcDefaultCols()
+	if cols == 0 {
+		calcDefaultCols()
+	}
 	defaultColsMode = 1 // next mode
 
 	go buildSparseMap()
