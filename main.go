@@ -70,6 +70,7 @@ var (
 	skipMap         map[Range]bool = make(map[Range]bool)
 	lastErrMsg      string
 	defaultColsMode int = 0
+	bookmarks       [10]int64
 
 	sparseMap []Range = make([]Range, 0)
 	mapReady  bool    = false
@@ -517,6 +518,14 @@ func writeFile(fname string, offset int64, size int64) error {
 
 }
 
+func setBookmark(n int) {
+	bookmarks[n] = offset
+}
+
+func gotoBookmark(n int) {
+	offset = bookmarks[n]
+}
+
 func handleEvents() {
 	for {
 		dir := 0
@@ -586,87 +595,119 @@ func handleEvents() {
 				return
 
 			case tcell.KeyRune:
-				switch ev.Rune() {
-				case ' ':
-					breadcrumbs = append(breadcrumbs, Breadcrumb{offset, tcell.KeyPgDn})
-					dir = 1
-					offset = nextOffset
-				case '-':
-					defaultColsMode = 0
-					if cols-int64(elWidth) > 0 {
-						cols -= int64(elWidth)
-						invalidateSkips()
+				if ev.Modifiers() == tcell.ModAlt {
+					switch ev.Rune() {
+					case '1', '2', '3', '4', '5', '6', '7', '8', '9', '0':
+						gotoBookmark(int(ev.Rune() - '0'))
 					}
-				case '_':
-					defaultColsMode = 0
-					if cols > 1 {
-						cols /= 2
-						invalidateSkips()
-					}
-				case '=':
-					defaultColsMode = 0
-					cols += int64(elWidth)
-					invalidateSkips()
-				case '+':
-					defaultColsMode = 0
-					cols *= 2
-					invalidateSkips()
-				case '0':
-					calcDefaultCols()
-					defaultColsMode = 1 - defaultColsMode
-				case '1', '2', '4', '8':
-					elWidth = int(ev.Rune() - '0')
 
-				case 'a':
-					showASCII = !showASCII
-				case 'b':
-					showBin = !showBin
-				case 'B':
-					binMode01 = !binMode01
-				case 'h':
-					showHex = !showHex
+				} else {
+					// no modifiers
 
-				case '9':
-					elWidth = 0x10
-				case 'd':
-					g_dedup = !g_dedup
-				case 'g':
-					offset = askHexInt("[hex] offset: ", offset)
-					//breadcrumbs = append(breadcrumbs, Breadcrumb{offset, tcell.KeyHome})
-					//offset = 0
-				case 'G':
-					breadcrumbs = append(breadcrumbs, Breadcrumb{offset, tcell.KeyEnd})
-					offset = lastPageOffset()
-				case 'n':
-					if !searchNext() {
-						beep()
-					}
-				case 'N':
-					if !searchPrev() {
-						beep()
-					}
-				case 'w':
-					cols = askInt("width: ", cols)
-					if cols == 0 {
-						defaultColsMode = 1 - defaultColsMode
+					switch ev.Rune() {
+					case '!':
+						setBookmark(1)
+					case '@':
+						setBookmark(2)
+					case '#':
+						setBookmark(3)
+					case '$':
+						setBookmark(4)
+					case '%':
+						setBookmark(5)
+					case '^':
+						setBookmark(6)
+					case '&':
+						setBookmark(7)
+					case '*':
+						setBookmark(8)
+					case '(':
+						setBookmark(9)
+					case ')':
+						setBookmark(0)
+
+					case ' ':
+						breadcrumbs = append(breadcrumbs, Breadcrumb{offset, tcell.KeyPgDn})
+						dir = 1
+						offset = nextOffset
+					case '-':
+						defaultColsMode = 0
+						if cols-int64(elWidth) > 0 {
+							cols -= int64(elWidth)
+							invalidateSkips()
+						}
+					case '_':
+						defaultColsMode = 0
+						if cols > 1 {
+							cols /= 2
+							invalidateSkips()
+						}
+					case '=':
+						defaultColsMode = 0
+						cols += int64(elWidth)
+						invalidateSkips()
+					case '+':
+						defaultColsMode = 0
+						cols *= 2
+						invalidateSkips()
+					case '0':
+						// no modifiers => set default cols number
 						calcDefaultCols()
 						defaultColsMode = 1 - defaultColsMode
-					}
-				case 'W':
-					fname := askString("write to: ", fmt.Sprintf("%0*x.bin", offsetWidth, offset))
-					if fname != "" {
-						size := askHexInt("[hex] size: ", 0x1000)
-						if size > 0 {
-							err := writeFile(fname, offset, size)
-							if err != nil {
-								beep()
+					case '1', '2', '4', '8':
+						// no modifiers => set element width
+						elWidth = int(ev.Rune() - '0')
+					case 'a':
+						showASCII = !showASCII
+					case 'b':
+						showBin = !showBin
+					case 'B':
+						binMode01 = !binMode01
+					case 'h':
+						showHex = !showHex
+
+					case '9':
+						elWidth = 0x10
+					case 'd':
+						g_dedup = !g_dedup
+					case 'g':
+						offset = askHexInt("[hex] offset: ", offset)
+						//breadcrumbs = append(breadcrumbs, Breadcrumb{offset, tcell.KeyHome})
+						//offset = 0
+					case 'G':
+						breadcrumbs = append(breadcrumbs, Breadcrumb{offset, tcell.KeyEnd})
+						offset = lastPageOffset()
+					case 'n':
+						if !searchNext() {
+							beep()
+						}
+					case 'N':
+						if !searchPrev() {
+							beep()
+						}
+					case 'w':
+						cols = askInt("width: ", cols)
+						if cols == 0 {
+							defaultColsMode = 1 - defaultColsMode
+							calcDefaultCols()
+							defaultColsMode = 1 - defaultColsMode
+						}
+					case 'W':
+						fname := askString("write to: ", fmt.Sprintf("%0*x.bin", offsetWidth, offset))
+						if fname != "" {
+							size := askHexInt("[hex] size: ", 0x1000)
+							if size > 0 {
+								err := writeFile(fname, offset, size)
+								if err != nil {
+									beep()
+								}
 							}
 						}
+					case '/', '?':
+						searchUI(ev.Rune() == '/')
+					case 'q', 'Q':
+						return
 					}
-				case '/', '?':
-					searchUI(ev.Rune() == '/')
-				case 'q', 'Q':
-					return
 				}
 			}
 
