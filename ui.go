@@ -15,11 +15,13 @@ func screenCapacity() int64 {
 }
 
 func printAt(x, y int, msg string) {
-	for i, c := range msg {
+	i := 0
+	for _, c := range msg { // for i, c : = range msg  -  will return byte offset of each rune, but we need its index
 		if x+i >= scrWidth {
 			break
 		}
 		screen.SetCell(x+i, y, tcell.StyleDefault, c)
+		i++
 	}
 }
 

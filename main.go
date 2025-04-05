@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -71,6 +72,7 @@ var (
 	lastErrMsg      string
 	defaultColsMode int = 0
 	bookmarks       [10]int64
+	fname           string
 
 	sparseMap []Range = make([]Range, 0)
 	mapReady  bool    = false
@@ -133,6 +135,8 @@ func draw() {
 	nextOffset = fileHexDump(reader, maxLinesPerPage)
 
 	printAt(0, maxLinesPerPage, ":")
+	shortname := shortenFName(fname, scrWidth-10)
+	printAt(scrWidth-utf8.RuneCountInString(shortname), maxLinesPerPage, shortname)
 
 	//    colorTable()
 	screen.Show()
@@ -771,13 +775,30 @@ func printLastErr() {
 	}
 }
 
+func shortenFName(fname string, max_len int) string {
+	if utf8.RuneCountInString(fname) <= max_len {
+		return fname
+	}
+
+	// find last '/' or '\'
+	lastSlash := strings.LastIndexAny(fname, "/\\")
+	if lastSlash != -1 {
+		fname = fname[lastSlash+1:]
+	}
+
+	if utf8.RuneCountInString(fname) > max_len {
+		fname = "…" + fname[utf8.RuneCountInString(fname)-max_len-1:]
+	}
+	return fname
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: hexdump <file>")
 		return
 	}
 
-	fname := os.Args[1]
+	fname = os.Args[1]
 
 	file, err := os.Open(fname)
 	if err != nil {
