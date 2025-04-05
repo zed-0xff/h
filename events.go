@@ -56,13 +56,13 @@ func handleEvents() {
 					breadcrumbs = breadcrumbs[:len(breadcrumbs)-1]
 				} else {
 					breadcrumbs = append(breadcrumbs, Breadcrumb{offset, tcell.KeyPgUp})
+					if pageSize == 0 {
+						offset -= cols * int64(maxLinesPerPage)
+					} else {
+						offset -= pageSize
+					}
 				}
 				dir = -1
-				if pageSize == 0 {
-					offset -= cols * int64(maxLinesPerPage)
-				} else {
-					offset -= pageSize
-				}
 			case tcell.KeyHome:
 				breadcrumbs = append(breadcrumbs, Breadcrumb{offset, ev.Key()})
 				offset = 0
