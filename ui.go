@@ -14,6 +14,35 @@ func screenCapacity() int64 {
 	return cols * int64(maxLinesPerPage)
 }
 
+// 1: "⠁⠂⠄⠈⠐⠠⡀⢀"
+// 2: "⠃⠅⠆⠉⠊⠌⠑⠒⠔⠘⠡⠢⠤⠨⠰⡁⡂⡄⡈⡐⡠⢁⢂⢄⢈⢐⢠⣀"
+// 3: "⠇⠋⠍⠎⠓⠕⠖⠙⠚⠜⠣⠥⠦⠩⠪⠬⠱⠲⠴⠸⡃⡅⡆⡉⡊⡌⡑⡒⡔⡘⡡⡢⡤⡨⡰⢃⢅⢆⢉⢊⢌⢑⢒⢔⢘⢡⢢⢤⢨⢰⣁⣂⣄⣈⣐⣠"
+// 4: "⠏⠗⠛⠝⠞⠧⠫⠭⠮⠳⠵⠶⠹⠺⠼⡇⡋⡍⡎⡓⡕⡖⡙⡚⡜⡣⡥⡦⡩⡪⡬⡱⡲⡴⡸⢇⢋⢍⢎⢓⢕⢖⢙⢚⢜⢣⢥⢦⢩⢪⢬⢱⢲⢴⢸⣃⣅⣆⣉⣊⣌⣑⣒⣔⣘⣡⣢⣤⣨⣰"
+// 5: "⠟⠯⠷⠻⠽⠾⡏⡗⡛⡝⡞⡧⡫⡭⡮⡳⡵⡶⡹⡺⡼⢏⢗⢛⢝⢞⢧⢫⢭⢮⢳⢵⢶⢹⢺⢼⣇⣋⣍⣎⣓⣕⣖⣙⣚⣜⣣⣥⣦⣩⣪⣬⣱⣲⣴⣸"
+// 6: "⠿⡟⡯⡷⡻⡽⡾⢟⢯⢷⢻⢽⢾⣏⣗⣛⣝⣞⣧⣫⣭⣮⣳⣵⣶⣹⣺⣼"
+// 7: "⡿⢿⣟⣯⣷⣻⣽⣾"
+// 8: "⣿"
+
+var ASCII_TBL = []rune(
+    " ₁₂₃₄₅₆₇₈₉ₐ·····················" + // 0x00 - 0x1f
+    " !\"#$%&'()*+,-./0123456789:;<=>?" + // 0x20 - 0x3f
+    "@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_" + // 0x40 - 0x5f
+    "`abcdefghijklmnopqrstuvwxyz{|}~⡿"  + // 0x60 - 0x7f
+    "⢀⢁⢂⢃⢄⢅⢆⢇⢈⢉⢊⢋⢌⢍⢎⢏⢐⢑⢒⢓⢔⢕⢖⢗⢘⢙⢚⢛⢜⢝⢞⢟"  + // 2880-289f
+    "⢠⢡⢢⢣⢤⢥⢦⢧⢨⢩⢪⢫⢬⢭⢮⢯⢰⢱⢲⢳⢴⢵⢶⢷⢸⢹⢺⢻⢼⢽⢾⢿"  + // 28a0-28bf
+    "⣀⣁⣂⣃⣄⣅⣆⣇⣈⣉⣊⣋⣌⣍⣎⣏⣐⣑⣒⣓⣔⣕⣖⣗⣘⣙⣚⣛⣜⣝⣞⣟"  + // 28c0-28df
+    "⣠⣡⣢⣣⣤⣥⣦⣧⣨⣩⣪⣫⣬⣭⣮⣯⣰⣱⣲⣳⣴⣵⣶⣷⣸⣹⣺⣻⣼⣽⣾⣿",   // 28e0-28ff
+)
+
+func printAtBytes(x, y int, msg []byte) {
+	for i, c := range msg {
+		if x+i >= scrWidth {
+			break
+		}
+		screen.SetCell(x+i, y, tcell.StyleDefault, ASCII_TBL[c])
+	}
+}
+
 func printAt(x, y int, msg string) {
 	i := 0
 	for _, c := range msg { // for i, c : = range msg  -  will return byte offset of each rune, but we need its index

@@ -270,13 +270,12 @@ func drawLine2(iLine int, chunk []byte, offset int64, max_width int) int {
 	}
 
 	if showASCII {
-		ascii := toAsciiLine(chunk, min(cols, int64(max_width)))
 		if cols < int64(max_width) && (showBin || showHex) {
-			printAt(max_width-int(cols), iLine, ascii)
+			printAtBytes(max_width-int(cols), iLine, chunk)
 		} else {
-			printAt(x, iLine, ascii)
+			printAtBytes(x, iLine, chunk)
 		}
-		x += len(ascii) + 1
+		x += len(chunk) + 1
 	}
 	return x
 }
@@ -459,26 +458,6 @@ func toHex(buf []byte, cols int64, width int) string {
 
 func toHexLine(buf []byte, ea int64, cols int64, width int) string {
 	return fmt.Sprintf("%0*X: %s", offsetWidth, ea, toHex(buf, cols, width))
-}
-
-func toAsciiLine(buf []byte, cols int64) string {
-	var asciiRep string
-	for j := 0; j < int(cols); j++ {
-		var c byte = 0
-		if j < len(buf) {
-			c = buf[j]
-		}
-
-		if c >= 32 && c <= 126 {
-			asciiRep += fmt.Sprintf("%c", c)
-		} else if c == 0 {
-			asciiRep += " "
-		} else {
-			asciiRep += "."
-		}
-	}
-
-	return asciiRep
 }
 
 func invalidateSkips() {

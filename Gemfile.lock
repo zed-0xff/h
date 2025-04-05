@@ -1,0 +1,16 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    unicode-name (1.13.5)
+      unicode-types (~> 1.10)
+    unicode-types (1.10.0)
+
+PLATFORMS
+  arm64-darwin-23
+  ruby
+
+DEPENDENCIES
+  unicode-name (~> 1.13)
+
+BUNDLED WITH
+   2.5.22
