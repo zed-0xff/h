@@ -124,13 +124,55 @@ func askInt(prompt string, curValue int64) int64 {
 	return n
 }
 
+// expect all-lowercase
+func parseExpr(expr string) (int64, error) {
+	expr = strings.TrimSpace(expr)
+
+	ops := []struct {
+		order int
+		op    byte
+		fn    func(a, b int64) int64
+	}{
+		{0, '*', func(a, b int64) int64 { return a * b }},
+		{0, '/', func(a, b int64) int64 { return a / b }},
+		{0, '%', func(a, b int64) int64 { return a % b }},
+		{1, '+', func(a, b int64) int64 { return a + b }},
+		{1, '-', func(a, b int64) int64 { return a - b }},
+	}
+
+	for order := 0; order < 2; order++ {
+		for _, op := range ops {
+			if op.order != order {
+				continue
+			}
+
+			for i := 0; i < len(expr); i++ {
+				if expr[i] == op.op {
+					left, err := parseExpr(expr[:i])
+					if err != nil {
+						return 0, err
+					}
+					right, err := parseExpr(expr[i+1:])
+					if err != nil {
+						return 0, err
+					}
+					return op.fn(left, right), nil
+				}
+			}
+		}
+	}
+
+	// Parse as hexadecimal after trimming optional "0x"
+	expr = strings.TrimPrefix(strings.TrimSpace(expr), "0x")
+	return strconv.ParseInt(expr, 16, 64)
+}
+
 func askHexInt(prompt string, curValue int64) int64 {
-	str, _ := ask(prompt, fmt.Sprintf("%x", curValue), "0123456789abcdefxABCDEFX", true)
+	str, _ := ask(prompt, fmt.Sprintf("%x", curValue), "0123456789abcdefxABCDEFX+=*/% ", true)
 	if str == "" {
 		return curValue
 	}
-	str = strings.TrimPrefix(strings.ToLower(str), "0x")
-	n, err := strconv.ParseInt(str, 16, 64)
+	n, err := parseExpr(strings.ToLower(str))
 	if err != nil {
 		beep()
 		return curValue
