@@ -39,7 +39,11 @@ func printAtBytes(x, y int, msg []byte) {
 		if x+i >= scrWidth {
 			break
 		}
-		screen.SetCell(x+i, y, tcell.StyleDefault, ASCII_TBL[c])
+        st := tcell.StyleDefault
+        if c < 0x20 {
+            st = stGray
+        }
+		screen.SetCell(x+i, y, st, ASCII_TBL[c])
 	}
 }
 

@@ -73,6 +73,7 @@ var (
 	bookmarks       [10]int64
 	fname           string
 	pageSize        int64 = 0
+	stGray                = tcell.StyleDefault.Foreground(tcell.NewRGBColor(0x30, 0x30, 0x30))
 
 	sparseMap []Range = make([]Range, 0)
 	mapReady  bool    = false
@@ -151,8 +152,6 @@ func toHexChar(c byte) byte {
 }
 
 func drawBin(x, y int, buf []byte, chars []rune, max_width int) int {
-	stGray := tcell.StyleDefault.Foreground(tcell.NewRGBColor(0x30, 0x30, 0x30))
-
 	for j := 0; j < len(buf); j += elWidth {
 		if elWidth == 1 && j > 0 && j%(8*elWidth) == 0 { // Add an extra space every 8 groups
 			x++
@@ -194,7 +193,6 @@ func drawBin(x, y int, buf []byte, chars []rune, max_width int) int {
 }
 
 func drawHex(x, y int, buf []byte, max_width int) int {
-	stGray := tcell.StyleDefault.Foreground(tcell.NewRGBColor(0x30, 0x30, 0x30))
 
 	for j := 0; j < len(buf); j += elWidth {
 		if elWidth == 1 && j > 0 && j%(8*elWidth) == 0 { // Add an extra space every 8 groups
