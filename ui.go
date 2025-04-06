@@ -9,10 +9,17 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-// how many bytes can fit in the screen
-func screenCapacity() int64 {
-	return cols * int64(maxLinesPerPage)
-}
+var (
+	stGray = tcell.StyleDefault.Foreground(tcell.NewRGBColor(0x30, 0x30, 0x30))
+	stErr  = tcell.StyleDefault.Foreground(tcell.NewRGBColor(0xFF, 0x00, 0x00))
+
+	showBin   bool = false
+	showHex   bool = true
+	showASCII bool = true
+
+	elWidth int   = 1
+	cols    int64 = 0
+)
 
 // 1: "⠁⠂⠄⠈⠐⠠⡀⢀"
 // 2: "⠃⠅⠆⠉⠊⠌⠑⠒⠔⠘⠡⠢⠤⠨⠰⡁⡂⡄⡈⡐⡠⢁⢂⢄⢈⢐⢠⣀"
@@ -47,7 +54,7 @@ func printAtBytes(x, y int, msg []byte) {
 	}
 }
 
-func printAt(x, y int, msg string) {
+func printAt(x, y int, msg string) int {
 	i := 0
 	for _, c := range msg { // for i, c : = range msg  -  will return byte offset of each rune, but we need its index
 		if x+i >= scrWidth {
@@ -56,6 +63,19 @@ func printAt(x, y int, msg string) {
 		screen.SetCell(x+i, y, tcell.StyleDefault, c)
 		i++
 	}
+	return i
+}
+
+func printAtSt(x, y int, msg string, st tcell.Style) int {
+	i := 0
+	for _, c := range msg { // for i, c : = range msg  -  will return byte offset of each rune, but we need its index
+		if x+i >= scrWidth {
+			break
+		}
+		screen.SetCell(x+i, y, st, c)
+		i++
+	}
+	return i
 }
 
 func printAtEx(x, y int, msg string, styleFunc func(int) tcell.Style) {
@@ -133,7 +153,7 @@ func ask(prompt, curValue, allowedChars string, firstKey bool, termKeys ...tcell
 }
 
 func beep() {
-	fmt.Print("\a")
+	screen.Beep()
 }
 
 func askString(prompt, curValue string) string {
@@ -168,14 +188,20 @@ func parseExpr(expr string) (int64, error) {
 		op    byte
 		fn    func(a, b int64) int64
 	}{
-		{0, '*', func(a, b int64) int64 { return a * b }},
-		{0, '/', func(a, b int64) int64 { return a / b }},
-		{0, '%', func(a, b int64) int64 { return a % b }},
-		{1, '+', func(a, b int64) int64 { return a + b }},
-		{1, '-', func(a, b int64) int64 { return a - b }},
+		// https://en.cppreference.com/w/cpp/language/operator_precedence
+		{05, '*', func(a, b int64) int64 { return a * b }},
+		{05, '/', func(a, b int64) int64 { return a / b }},
+		{05, '%', func(a, b int64) int64 { return a % b }},
+
+		{06, '+', func(a, b int64) int64 { return a + b }},
+		{06, '-', func(a, b int64) int64 { return a - b }},
+
+		{11, '&', func(a, b int64) int64 { return a & b }},
+		{12, '^', func(a, b int64) int64 { return a ^ b }},
+		{13, '|', func(a, b int64) int64 { return a | b }},
 	}
 
-	for order := 0; order < 2; order++ {
+	for order := 0; order < 14; order++ {
 		for _, op := range ops {
 			if op.order != order {
 				continue
@@ -309,10 +335,29 @@ func askSearchPattern(pattern0 []byte) []byte {
 }
 
 func showError(err error) {
-	if err != nil {
-		printAt(0, maxLinesPerPage, fmt.Sprintf("error: %v", err))
-		screen.Show()
-		beep()
-		waitForAnyKey()
+	showErrStr(err.Error())
+}
+
+func showErrStr(chunks ...interface{}) {
+	x := 0
+	for _, chunk := range chunks {
+		s := fmt.Sprint(chunk)
+		x += printAtSt(x, maxLinesPerPage, s, stErr)
+	}
+	screen.Show()
+	beep()
+	waitForAnyKey()
+}
+
+func setCols(c int64) {
+	if c < 0 {
+		return
+	}
+
+	cols = c
+	if cols == 0 {
+		defaultColsMode = 1 - defaultColsMode
+		calcDefaultCols()
+		defaultColsMode = 1 - defaultColsMode
 	}
 }

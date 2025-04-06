@@ -149,6 +149,11 @@ func handleEvents() {
 					case '1', '2', '4', '8':
 						// no modifiers => set element width
 						elWidth = int(ev.Rune() - '0')
+					case ':':
+						cmd := askString("command: ", "")
+						if cmd != "" {
+							run_cmd(cmd)
+						}
 					case 'a':
 						showASCII = !showASCII
 					case 'b':
@@ -158,15 +163,9 @@ func handleEvents() {
 					case 'C':
 						altColorMode = !altColorMode
 					case 'c', 'w':
-						cols = askInt("cols: ", cols)
-						if cols == 0 {
-							defaultColsMode = 1 - defaultColsMode
-							calcDefaultCols()
-							defaultColsMode = 1 - defaultColsMode
-						}
+						setCols(askInt("cols: ", cols))
 					case 'h':
 						showHex = !showHex
-
 					case '9':
 						elWidth = 0x10
 					case 'd':

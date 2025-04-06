@@ -47,10 +47,6 @@ const MaxMode = 3
 const TextMode = 3
 
 var (
-	showBin   bool = false
-	showHex   bool = true
-	showASCII bool = true
-
 	binMode01       = false
 	dispMode        = DispModeDump
 	numMode         = NumModeHex
@@ -59,8 +55,6 @@ var (
 	fileSize        int64
 	offset          int64
 	offsetWidth     int
-	elWidth         int   = 1
-	cols            int64 = 0
 	maxLinesPerPage int
 	nextOffset      int64
 	scrWidth        int
@@ -74,8 +68,6 @@ var (
 	fname           string
 	pageSize        int64 = 0
 	altColorMode    bool  = false
-
-	stGray = tcell.StyleDefault.Foreground(tcell.NewRGBColor(0x30, 0x30, 0x30))
 
 	sparseMap []Range = make([]Range, 0)
 	mapReady  bool    = false
@@ -619,10 +611,8 @@ func main() {
 	}
 	defer screen.Fini()
 
-	if cols == 0 {
-		calcDefaultCols()
-	}
-	defaultColsMode = 1 // next mode
+	setCols(cols) // calc defaults if cols == 0
+	//defaultColsMode = 1 // next mode
 
 	go buildSparseMap()
 
