@@ -150,9 +150,11 @@ func handleEvents() {
 						// no modifiers => set element width
 						elWidth = int(ev.Rune() - '0')
 					case ':':
-						cmd := askString("command: ", "")
+						cmd := askCommand()
 						if cmd != "" {
-							run_cmd(cmd)
+							if run_cmd(cmd) {
+								commandHistory.Add(cmd)
+							}
 						}
 					case 'a':
 						showASCII = !showASCII

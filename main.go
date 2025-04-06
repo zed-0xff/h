@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -561,6 +562,14 @@ func shortenFName(fname string, max_len int) string {
 	return fname
 }
 
+func getAppDir() (string, error) {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(configDir, "h"), nil
+}
+
 func main() {
 	processFlags()
 
@@ -593,7 +602,8 @@ func main() {
 		}
 	}
 
-	go initSearch()
+	go initSearchHistory()
+	go initCommandHistory()
 
 	offsetWidth = len(fmt.Sprintf("%X", fileSize))
 	if offsetWidth < 8 {

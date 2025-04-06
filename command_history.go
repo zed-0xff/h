@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -10,65 +9,64 @@ import (
 )
 
 const (
-	MAX_SEARCH_HISTORY_ENTRIES = 1024
+	MAX_COMMAND_HISTORY_ENTRIES = 1024
 )
 
-type SearchHistory struct {
-	entries       []SearchHistoryEntry
+type CommandHistory struct {
+	entries       []CommandHistoryEntry
 	pos           int
 	fileTimestamp time.Time
 	fileSize      int64
 	ready         bool
 }
 
-type SearchHistoryEntry struct {
-	Mode    int
-	Pattern []byte
+type CommandHistoryEntry struct {
+	Command string
 	Ts      int64
 }
 
-var searchHistory = &SearchHistory{}
+var commandHistory = &CommandHistory{}
 
-func (sh *SearchHistory) Add(mode int, pattern []byte) {
+func (sh *CommandHistory) Add(command string) {
 	if !sh.ready {
 		return
 	}
-	if len(pattern) == 0 {
+	if len(command) == 0 {
 		return
 	}
-	if len(sh.entries) > 0 && sh.entries[len(sh.entries)-1].Mode == mode && bytes.Equal(sh.entries[len(sh.entries)-1].Pattern, pattern) {
+	if len(sh.entries) > 0 && sh.entries[len(sh.entries)-1].Command == command {
 		return
 	}
-	sh.entries = append(sh.entries, SearchHistoryEntry{Mode: mode, Pattern: pattern, Ts: time.Now().UnixNano()})
+	sh.entries = append(sh.entries, CommandHistoryEntry{Command: command, Ts: time.Now().UnixNano()})
 	sh.pos = len(sh.entries) - 1
 	go sh.Save()
 }
 
-func (sh *SearchHistory) Prev() (int, []byte) {
+func (sh *CommandHistory) Prev() string {
 	if sh.ready && sh.pos > 0 {
 		sh.pos--
-		return sh.entries[sh.pos].Mode, sh.entries[sh.pos].Pattern
+		return sh.entries[sh.pos].Command
 	}
-	return -1, nil
+	return ""
 }
 
-func (sh *SearchHistory) Next() (int, []byte) {
+func (sh *CommandHistory) Next() string {
 	if sh.ready && sh.pos < len(sh.entries)-1 {
 		sh.pos++
-		return sh.entries[sh.pos].Mode, sh.entries[sh.pos].Pattern
+		return sh.entries[sh.pos].Command
 	}
-	return -1, nil
+	return ""
 }
 
-func (sh *SearchHistory) fileName() string {
+func (sh *CommandHistory) fileName() string {
 	path, err := getAppDir()
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(path, "search_history.json")
+	return filepath.Join(path, "command_history.json")
 }
 
-func (sh *SearchHistory) Save() {
+func (sh *CommandHistory) Save() {
 	fname := sh.fileName()
 	if fname == "" {
 		return
@@ -84,16 +82,16 @@ func (sh *SearchHistory) Save() {
 
 	fi, err := os.Stat(fname)
 	if err == nil && (fi.ModTime() != sh.fileTimestamp || fi.Size() != sh.fileSize) {
-		merged = &SearchHistory{}
+		merged = &CommandHistory{}
 		merged.Load()
 		merged.entries = append(merged.entries, sh.entries...)
 		merged.sort_uniq()
 	}
 
 	entries := merged.entries
-	if len(merged.entries) > MAX_SEARCH_HISTORY_ENTRIES {
+	if len(merged.entries) > MAX_COMMAND_HISTORY_ENTRIES {
 		// keep last
-		entries = entries[len(merged.entries)-MAX_SEARCH_HISTORY_ENTRIES:]
+		entries = entries[len(merged.entries)-MAX_COMMAND_HISTORY_ENTRIES:]
 	}
 
 	f, err := os.Create(fname)
@@ -106,7 +104,7 @@ func (sh *SearchHistory) Save() {
 	enc.Encode(entries)
 }
 
-func (sh *SearchHistory) sort_uniq() {
+func (sh *CommandHistory) sort_uniq() {
 	sort.Slice(sh.entries, func(i, j int) bool {
 		return sh.entries[i].Ts < sh.entries[j].Ts
 	})
@@ -120,22 +118,17 @@ func (sh *SearchHistory) sort_uniq() {
 	}
 }
 
-func initSearchHistory() {
-	searchHistory.Load()
-	if searchHistory.ready && len(searchHistory.entries) > 0 {
-		lastSearch := searchHistory.entries[len(searchHistory.entries)-1]
-		g_searchMode = lastSearch.Mode
-		g_searchPattern = lastSearch.Pattern
-	}
+func initCommandHistory() {
+	commandHistory.Load()
 }
 
-func (sh *SearchHistory) Load() {
+func (sh *CommandHistory) Load() {
 	sh.tryLoad()
 	sh.pos = len(sh.entries)
 	sh.ready = true
 }
 
-func (sh *SearchHistory) tryLoad() {
+func (sh *CommandHistory) tryLoad() {
 	fname := sh.fileName()
 	if fname == "" {
 		return

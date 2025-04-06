@@ -334,6 +334,50 @@ func askSearchPattern(pattern0 []byte) []byte {
 	}
 }
 
+func askCommand() string {
+	var key tcell.Key
+	var cmd string
+
+	firstKey := true
+	for {
+		cmd, key = ask("command: ", cmd, "", firstKey, tcell.KeyUp, tcell.KeyDown)
+		if key == tcell.KeyEnter {
+			return cmd
+		}
+		switch key {
+		case tcell.KeyEsc, tcell.KeyCtrlC:
+			// cancel command
+			return ""
+		case tcell.KeyUp:
+			// prev history
+			prevCommand := commandHistory.Prev()
+			if prevCommand != "" {
+				cmd = prevCommand
+				firstKey = false
+			} else {
+				beep()
+			}
+		case tcell.KeyDown:
+			// next history
+			nextCommand := commandHistory.Next()
+			if nextCommand != "" {
+				cmd = nextCommand
+				firstKey = false
+			} else {
+				if cmd == "" {
+					// TODO: keep nonfinished user input?
+					beep()
+				} else {
+					firstKey = false
+				}
+			}
+		default:
+			// unexpected key
+			return ""
+		}
+	}
+}
+
 func showError(err error) {
 	showErrStr(err.Error())
 }
