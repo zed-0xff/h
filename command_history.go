@@ -35,10 +35,11 @@ func (sh *CommandHistory) Add(command string) {
 		return
 	}
 	if len(sh.entries) > 0 && sh.entries[len(sh.entries)-1].Command == command {
+		sh.pos = len(sh.entries) // set position to last entry+1 (old entry)
 		return
 	}
 	sh.entries = append(sh.entries, CommandHistoryEntry{Command: command, Ts: time.Now().UnixNano()})
-	sh.pos = len(sh.entries) - 1
+	sh.pos = len(sh.entries) // set position to last entry+1 (new entry)
 	go sh.Save()
 }
 

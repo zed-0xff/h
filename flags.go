@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"strconv"
-	"strings"
 
 	"github.com/spf13/pflag"
 )
@@ -24,8 +22,6 @@ func processFlags() {
 	}
 
 	pflag.Parse()
-
-	println("dedup:", g_dedup)
 
 	pos_args := pflag.Args()
 	if len(pos_args) == 0 {
@@ -50,8 +46,7 @@ func processFlags() {
 		//		}
 
 		var err error
-		str := strings.TrimPrefix(strings.ToLower(pos_args[1]), "0x")
-		offset, err = strconv.ParseInt(str, 16, 64)
+		offset, err = parseExprRadix(pos_args[1], 16)
 		if err != nil {
 			fmt.Println("Error parsing offset:", err)
 			os.Exit(1)

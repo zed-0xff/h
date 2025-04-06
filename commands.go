@@ -21,7 +21,13 @@ func run_cmd(cmd string) bool {
 }
 
 func cmd_set(cmd string) bool {
-	args := strings.SplitN(cmd, " ", 3)[1:]
+	a := strings.SplitN(cmd, " ", 2)
+	if len(a) < 2 {
+		// TODO: show current vars
+		return false
+	}
+
+	args := strings.SplitN(a[1], "=", 2)
 	if len(args) < 2 {
 		showErrStr("set: need two arguments, got ", len(args))
 		return false

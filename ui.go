@@ -9,6 +9,8 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
+const EXPR_ALLOWED_CHARS = "0123456789abcdefxABCDEFX+=*/%^&| "
+
 var (
 	stGray = tcell.StyleDefault.Foreground(tcell.NewRGBColor(0x30, 0x30, 0x30))
 	stErr  = tcell.StyleDefault.Foreground(tcell.NewRGBColor(0xFF, 0x00, 0x00))
@@ -167,11 +169,11 @@ func askBinStr(prompt, curValue string) string {
 }
 
 func askInt(prompt string, curValue int64) int64 {
-	str, _ := ask(prompt, fmt.Sprintf("%d", curValue), "0123456789abcdefxABCDEFX", true)
+	str, _ := ask(prompt, fmt.Sprintf("%d", curValue), EXPR_ALLOWED_CHARS, true)
 	if str == "" {
 		return curValue
 	}
-	n, err := strconv.ParseInt(str, 0, 64)
+	n, err := parseExpr(str)
 	if err != nil {
 		beep()
 		return curValue
@@ -179,8 +181,11 @@ func askInt(prompt string, curValue int64) int64 {
 	return n
 }
 
-// expect all-lowercase
 func parseExpr(expr string) (int64, error) {
+	return parseExprRadix(expr, 0)
+}
+
+func parseExprRadix(expr string, radix int) (int64, error) {
 	expr = strings.TrimSpace(expr)
 
 	ops := []struct {
@@ -209,11 +214,11 @@ func parseExpr(expr string) (int64, error) {
 
 			for i := 0; i < len(expr); i++ {
 				if expr[i] == op.op {
-					left, err := parseExpr(expr[:i])
+					left, err := parseExprRadix(expr[:i], radix)
 					if err != nil {
 						return 0, err
 					}
-					right, err := parseExpr(expr[i+1:])
+					right, err := parseExprRadix(expr[i+1:], radix)
 					if err != nil {
 						return 0, err
 					}
@@ -223,17 +228,16 @@ func parseExpr(expr string) (int64, error) {
 		}
 	}
 
-	// Parse as hexadecimal after trimming optional "0x"
-	expr = strings.TrimPrefix(strings.TrimSpace(expr), "0x")
-	return strconv.ParseInt(expr, 16, 64)
+	expr = strings.TrimSpace(expr)
+	return strconv.ParseInt(expr, radix, 64)
 }
 
 func askHexInt(prompt string, curValue int64) int64 {
-	str, _ := ask(prompt, fmt.Sprintf("%x", curValue), "0123456789abcdefxABCDEFX+=*/% ", true)
+	str, _ := ask(prompt, fmt.Sprintf("%x", curValue), EXPR_ALLOWED_CHARS, true)
 	if str == "" {
 		return curValue
 	}
-	n, err := parseExpr(strings.ToLower(str))
+	n, err := parseExprRadix(strings.ToLower(str), 16)
 	if err != nil {
 		beep()
 		return curValue
