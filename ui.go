@@ -3,13 +3,10 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
 )
-
-const EXPR_ALLOWED_CHARS = "0123456789abcdefxABCDEFX+=*/%^&| "
 
 var (
 	stGray = tcell.StyleDefault.Foreground(tcell.NewRGBColor(0x30, 0x30, 0x30))
@@ -19,8 +16,23 @@ var (
 	showHex   bool = true
 	showASCII bool = true
 
-	elWidth int   = 1
-	cols    int64 = 0
+	binMode01            = false
+	dispMode             = DispModeDump
+	numMode              = NumModeHex
+	altColorMode    bool = false
+	defaultColsMode int  = 0
+
+	screen    tcell.Screen
+	scrWidth  int
+	scrHeight int
+	elWidth   int   = 1
+	cols      int64 = 0
+
+	pageSize int64 = 0
+
+	g_dedup     = true
+	bookmarks   [10]int64
+	breadcrumbs []Breadcrumb
 )
 
 // 1: "⠁⠂⠄⠈⠐⠠⡀⢀"
@@ -181,57 +193,6 @@ func askInt(prompt string, curValue int64) int64 {
 	return n
 }
 
-func parseExpr(expr string) (int64, error) {
-	return parseExprRadix(expr, 0)
-}
-
-func parseExprRadix(expr string, radix int) (int64, error) {
-	expr = strings.TrimSpace(expr)
-
-	ops := []struct {
-		order int
-		op    byte
-		fn    func(a, b int64) int64
-	}{
-		// https://en.cppreference.com/w/cpp/language/operator_precedence
-		{05, '*', func(a, b int64) int64 { return a * b }},
-		{05, '/', func(a, b int64) int64 { return a / b }},
-		{05, '%', func(a, b int64) int64 { return a % b }},
-
-		{06, '+', func(a, b int64) int64 { return a + b }},
-		{06, '-', func(a, b int64) int64 { return a - b }},
-
-		{11, '&', func(a, b int64) int64 { return a & b }},
-		{12, '^', func(a, b int64) int64 { return a ^ b }},
-		{13, '|', func(a, b int64) int64 { return a | b }},
-	}
-
-	for order := 0; order < 14; order++ {
-		for _, op := range ops {
-			if op.order != order {
-				continue
-			}
-
-			for i := 0; i < len(expr); i++ {
-				if expr[i] == op.op {
-					left, err := parseExprRadix(expr[:i], radix)
-					if err != nil {
-						return 0, err
-					}
-					right, err := parseExprRadix(expr[i+1:], radix)
-					if err != nil {
-						return 0, err
-					}
-					return op.fn(left, right), nil
-				}
-			}
-		}
-	}
-
-	expr = strings.TrimSpace(expr)
-	return strconv.ParseInt(expr, radix, 64)
-}
-
 func askHexInt(prompt string, curValue int64) int64 {
 	str, _ := ask(prompt, fmt.Sprintf("%x", curValue), EXPR_ALLOWED_CHARS, true)
 	if str == "" {
@@ -346,6 +307,7 @@ func askCommand() string {
 	for {
 		cmd, key = ask("command: ", cmd, "", firstKey, tcell.KeyUp, tcell.KeyDown)
 		if key == tcell.KeyEnter {
+			commandHistory.Add(cmd)
 			return cmd
 		}
 		switch key {

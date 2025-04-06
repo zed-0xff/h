@@ -48,27 +48,16 @@ const MaxMode = 3
 const TextMode = 3
 
 var (
-	binMode01       = false
-	dispMode        = DispModeDump
-	numMode         = NumModeHex
-	screen          tcell.Screen
 	reader          Reader
 	fileSize        int64
+	base            int64 = 0
 	offset          int64
 	offsetWidth     int
 	maxLinesPerPage int
 	nextOffset      int64
-	scrWidth        int
-	scrHeight       int
-	g_dedup         bool = true
-	breadcrumbs     []Breadcrumb
 	skipMap         map[Range]bool = make(map[Range]bool)
 	lastErrMsg      string
-	defaultColsMode int = 0
-	bookmarks       [10]int64
 	fname           string
-	pageSize        int64 = 0
-	altColorMode    bool  = false
 
 	sparseMap []Range = make([]Range, 0)
 	mapReady  bool    = false
@@ -245,7 +234,7 @@ func drawLine(iLine int, chunk []byte, offset int64) int {
 
 // also used for calculating max width
 func drawLine2(iLine int, chunk []byte, offset int64, max_width int) int {
-	printAt(0, iLine, fmt.Sprintf("%0*X:", offsetWidth, offset))
+	printAt(0, iLine, fmt.Sprintf("%0*X:", offsetWidth, base+offset))
 	x := offsetWidth + 2
 
 	if showBin {

@@ -152,9 +152,7 @@ func handleEvents() {
 					case ':':
 						cmd := askCommand()
 						if cmd != "" {
-							if run_cmd(cmd) {
-								commandHistory.Add(cmd)
-							}
+							run_cmd(cmd)
 						}
 					case 'a':
 						showASCII = !showASCII
@@ -173,7 +171,10 @@ func handleEvents() {
 					case 'd':
 						g_dedup = !g_dedup
 					case 'g':
-						offset = askHexInt("[hex] offset: ", offset)
+						new_offset := askHexInt("[hex] offset: ", offset)
+						if new_offset != offset {
+							offset = new_offset - base
+						}
 						//breadcrumbs = append(breadcrumbs, Breadcrumb{offset, tcell.KeyHome})
 						//offset = 0
 					case 'G':

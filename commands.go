@@ -4,6 +4,15 @@ import (
 	"strings"
 )
 
+var INT_VARS = []struct {
+	name  string
+	pvar  *int64
+	radix int
+}{
+	{"cols", &cols, 10},
+	{"base", &base, 16},
+}
+
 func run_cmd(cmd string) bool {
 	a := strings.SplitN(cmd, " ", 2)
 
@@ -20,6 +29,22 @@ func run_cmd(cmd string) bool {
 	return true
 }
 
+func try_set_var(name, expr string) bool {
+	for _, v := range INT_VARS {
+		if v.name == name {
+			if val, err := parseExprRadix(expr, v.radix); err == nil {
+				*v.pvar = val
+				return true
+			} else {
+				showError(err)
+				return false
+			}
+		}
+	}
+	showErrStr("unknown variable: " + name)
+	return false
+}
+
 func cmd_set(cmd string) bool {
 	a := strings.SplitN(cmd, " ", 2)
 	if len(a) < 2 {
@@ -32,16 +57,9 @@ func cmd_set(cmd string) bool {
 		showErrStr("set: need two arguments, got ", len(args))
 		return false
 	}
-
-	switch args[0] {
-	case "cols":
-		if val, err := parseExpr(args[1]); err == nil {
-			setCols(val)
-		} else {
-			showError(err)
-			return false
-		}
+	for i := range args {
+		args[i] = strings.TrimSpace(args[i])
 	}
 
-	return true
+	return try_set_var(args[0], args[1])
 }
