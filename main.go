@@ -73,7 +73,9 @@ var (
 	bookmarks       [10]int64
 	fname           string
 	pageSize        int64 = 0
-	stGray                = tcell.StyleDefault.Foreground(tcell.NewRGBColor(0x30, 0x30, 0x30))
+	altColorMode    bool  = false
+
+	stGray = tcell.StyleDefault.Foreground(tcell.NewRGBColor(0x30, 0x30, 0x30))
 
 	sparseMap []Range = make([]Range, 0)
 	mapReady  bool    = false
@@ -205,10 +207,15 @@ func drawHex(x, y int, buf []byte, max_width int) int {
 			if j+k >= len(buf) {
 				continue
 			}
+			st0 := tcell.StyleDefault
+
 			byte := buf[j+k]
+			if elWidth == 1 && altColorMode && byte < 0x10 {
+				st0 = stGray
+			}
 
 			octet := byte >> 4
-			st := tcell.StyleDefault
+			st := st0
 			if leadingZero {
 				if octet == 0 {
 					st = stGray
@@ -220,7 +227,7 @@ func drawHex(x, y int, buf []byte, max_width int) int {
 			x++
 
 			octet = byte & 0x0f
-			st = tcell.StyleDefault
+			st = st0
 			if leadingZero {
 				if octet == 0 {
 					st = stGray

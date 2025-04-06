@@ -155,6 +155,8 @@ func handleEvents() {
 						showBin = !showBin
 					case 'B':
 						binMode01 = !binMode01
+					case 'C':
+						altColorMode = !altColorMode
 					case 'c', 'w':
 						cols = askInt("cols: ", cols)
 						if cols == 0 {
