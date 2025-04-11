@@ -5,12 +5,13 @@ import (
 )
 
 var INT_VARS = []struct {
-	name  string
-	pvar  *int64
-	radix int
+	name         string
+	pvar         *int64
+	defaultRadix int
 }{
 	{"cols", &cols, 10},
 	{"base", &base, 16},
+	{"pagesize", &pageSize, 10},
 }
 
 func run_cmd(cmd string) bool {
@@ -32,7 +33,7 @@ func run_cmd(cmd string) bool {
 func try_set_var(name, expr string) bool {
 	for _, v := range INT_VARS {
 		if v.name == name {
-			if val, err := parseExprRadix(expr, v.radix); err == nil {
+			if val, err := parseExprRadix(expr, v.defaultRadix); err == nil {
 				*v.pvar = val
 				return true
 			} else {
