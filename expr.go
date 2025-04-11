@@ -6,7 +6,7 @@ import (
 )
 
 // used in ui.go
-const EXPR_ALLOWED_CHARS = "0123456789abcdefxABCDEFX+=*/%^&| "
+const EXPR_ALLOWED_CHARS = "0123456789abcdefxABCDEFX-+=*/%^&| "
 
 var OPS = []struct {
 	order int
