@@ -52,9 +52,8 @@ func parseExprRadix(expr string, radix int) (int64, error) {
 	}
 
 	expr = strings.TrimSpace(expr)
-	if radix == 16 && (strings.HasPrefix(expr, "0x") || strings.HasPrefix(expr, "0X")) {
-		// golang respects the "0x" prefix only when radix is 0
-		expr = expr[2:]
+	if strings.HasPrefix(expr, "0x") || strings.HasPrefix(expr, "0X") {
+		radix = 0
 	}
 	return strconv.ParseInt(expr, radix, 64)
 }
