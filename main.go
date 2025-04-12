@@ -57,7 +57,6 @@ var (
 	maxLinesPerPage int
 	nextOffset      int64
 	skipMap         map[Range]bool = make(map[Range]bool)
-	lastErrMsg      string
 	fname           string
 
 	sparseMap []Range = make([]Range, 0)

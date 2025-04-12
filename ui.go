@@ -35,6 +35,9 @@ var (
 	g_dedup     = true
 	bookmarks   [10]int64
 	breadcrumbs []Breadcrumb
+
+	lastErrMsg string
+	lastMsg    string
 )
 
 // 1: "⠁⠂⠄⠈⠐⠠⡀⢀"
@@ -67,11 +70,6 @@ func draw() {
 		os.Exit(1)
 	}
 	maxLinesPerPage = scrHeight - 1
-
-	//	if mode == 0 && cols > int64(scrWidth/3) {
-	//		mode++
-	//	}
-
 	nextOffset = fileHexDump(reader, maxLinesPerPage)
 
 	printAt(0, maxLinesPerPage, ":")
@@ -80,9 +78,10 @@ func draw() {
 
 	if len(lastErrMsg) > 0 {
 		printAtSt(0, maxLinesPerPage, lastErrMsg, stErr)
+	} else if len(lastMsg) > 0 {
+		printAt(0, maxLinesPerPage, lastMsg)
 	}
 
-	//    colorTable()
 	screen.Show()
 }
 
@@ -379,6 +378,10 @@ func askCommand() string {
 			return ""
 		}
 	}
+}
+
+func showMsg(msg string) {
+	lastMsg = msg
 }
 
 func showError(err error) {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -21,7 +22,34 @@ var COMMANDS = []struct {
 }{
 	{"beep", func(string) { beep() }},
 	{"goto", cmd_goto},
+	{"print", cmd_print},
 	{"set", cmd_set},
+}
+
+func cmd_print(args string) {
+	if args == "" {
+		showErrStr("print: need one argument")
+		return
+	}
+
+	a := strings.Split(args, " ")
+	if len(a) != 1 {
+		showErrStr("print: need one argument, got ", len(a))
+		return
+	}
+
+	args = strings.TrimSpace(a[0])
+	if args == "" {
+		showErrStr("print: empty argument")
+		return
+	}
+
+	res, err := parseExprRadix(args, 16)
+	if err != nil {
+		showError(err)
+		return
+	}
+	showMsg(fmt.Sprintf("0x%x (%d)", res, res))
 }
 
 func cmd_goto(args string) {

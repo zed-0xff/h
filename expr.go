@@ -36,11 +36,31 @@ var EXPR_ALLOWED_CHARS = "0123456789abcdefxABCDEFX $" + func() string {
 	return string(ops)
 }()
 
+var MAX_ORDER = func() int {
+	maxOrder := 0
+	for _, op := range OPS {
+		if op.order > maxOrder {
+			maxOrder = op.order
+		}
+	}
+	return maxOrder
+}()
+
+var MIN_ORDER = func() int {
+	minOrder := MAX_ORDER
+	for _, op := range OPS {
+		if op.order < minOrder {
+			minOrder = op.order
+		}
+	}
+	return minOrder
+}()
+
 // expects expr to be lowercase
 func parseExprRadix_(expr string, radix int) (int64, error) {
 	expr = strings.TrimSpace(expr)
 
-	for order := 0; order < 14; order++ {
+	for order := MAX_ORDER; order >= MIN_ORDER; order-- {
 		for _, op := range OPS {
 			if op.order != order {
 				continue
