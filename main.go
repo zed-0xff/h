@@ -103,31 +103,6 @@ func findPrevData(pos int64) int64 {
 	return -1
 }
 
-func draw() {
-	screen.Clear()
-
-	scrWidth, scrHeight = screen.Size()
-	if scrWidth == 0 || scrHeight == 0 {
-		screen.Fini()
-		fmt.Println("Error getting screen size", scrWidth, scrHeight)
-		os.Exit(1)
-	}
-	maxLinesPerPage = scrHeight - 1
-
-	//	if mode == 0 && cols > int64(scrWidth/3) {
-	//		mode++
-	//	}
-
-	nextOffset = fileHexDump(reader, maxLinesPerPage)
-
-	printAt(0, maxLinesPerPage, ":")
-	shortname := shortenFName(fname, scrWidth-10)
-	printAt(scrWidth-utf8.RuneCountInString(shortname), maxLinesPerPage, shortname)
-
-	//    colorTable()
-	screen.Show()
-}
-
 func toHexChar(c byte) byte {
 	if c < 10 {
 		return '0' + c

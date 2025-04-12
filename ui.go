@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -54,6 +56,35 @@ var ASCII_TBL = []rune(
 		/* 0xc0 - 0xdf */ "⣀⣁⣂⣃⣄⣅⣆⣇⣈⣉⣊⣋⣌⣍⣎⣏⣐⣑⣒⣓⣔⣕⣖⣗⣘⣙⣚⣛⣜⣝⣞⣟" + // \u28c0-\u28df
 		/* 0xe0 - 0xff */ "⣠⣡⣢⣣⣤⣥⣦⣧⣨⣩⣪⣫⣬⣭⣮⣯⣰⣱⣲⣳⣴⣵⣶⣷⣸⣹⣺⣻⣼⣽⣾⣿", //  \u28e0-\u28ff
 )
+
+func draw() {
+	screen.Clear()
+
+	scrWidth, scrHeight = screen.Size()
+	if scrWidth == 0 || scrHeight == 0 {
+		screen.Fini()
+		fmt.Println("Error getting screen size", scrWidth, scrHeight)
+		os.Exit(1)
+	}
+	maxLinesPerPage = scrHeight - 1
+
+	//	if mode == 0 && cols > int64(scrWidth/3) {
+	//		mode++
+	//	}
+
+	nextOffset = fileHexDump(reader, maxLinesPerPage)
+
+	printAt(0, maxLinesPerPage, ":")
+	shortname := shortenFName(fname, scrWidth-10)
+	printAt(scrWidth-utf8.RuneCountInString(shortname), maxLinesPerPage, shortname)
+
+	if len(lastErrMsg) > 0 {
+		printAtSt(0, maxLinesPerPage, lastErrMsg, stErr)
+	}
+
+	//    colorTable()
+	screen.Show()
+}
 
 func printAtBytes(x, y int, msg []byte) {
 	for i, c := range msg {
@@ -355,16 +386,8 @@ func showError(err error) {
 }
 
 func showErrStr(chunks ...interface{}) {
-	clearLine(maxLinesPerPage)
-
-	x := 0
-	for _, chunk := range chunks {
-		s := fmt.Sprint(chunk)
-		x += printAtSt(x, maxLinesPerPage, s, stErr)
-	}
-	screen.Show()
+	lastErrMsg = fmt.Sprint(chunks...)
 	beep()
-	waitForAnyKey()
 }
 
 func setCols(c int64) {

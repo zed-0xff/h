@@ -12,6 +12,8 @@ func handleEvents() {
 		ev := screen.PollEvent()
 		switch ev := ev.(type) {
 		case *tcell.EventKey:
+			lastErrMsg = "" // reset last error message on any key event
+
 			switch ev.Key() {
 			case tcell.KeyLeft:
 				breadcrumbs = append(breadcrumbs, Breadcrumb{offset, ev.Key()})
