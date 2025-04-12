@@ -68,6 +68,12 @@ func printAtBytes(x, y int, msg []byte) {
 	}
 }
 
+func clearLine(y int) {
+	for x := 0; x < scrWidth; x++ {
+		screen.SetCell(x, y, tcell.StyleDefault, ' ')
+	}
+}
+
 func printAt(x, y int, msg string) int {
 	i := 0
 	for _, c := range msg { // for i, c : = range msg  -  will return byte offset of each rune, but we need its index
@@ -349,6 +355,8 @@ func showError(err error) {
 }
 
 func showErrStr(chunks ...interface{}) {
+	clearLine(maxLinesPerPage)
+
 	x := 0
 	for _, chunk := range chunks {
 		s := fmt.Sprint(chunk)

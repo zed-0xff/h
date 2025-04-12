@@ -173,7 +173,7 @@ func handleEvents() {
 					case 'g':
 						new_offset := askHexInt("[hex] offset: ", offset)
 						if new_offset != offset {
-							offset = new_offset - base
+							gotoOffset(new_offset)
 						}
 						//breadcrumbs = append(breadcrumbs, Breadcrumb{offset, tcell.KeyHome})
 						//offset = 0

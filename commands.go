@@ -11,6 +11,7 @@ var INT_VARS = []struct {
 }{
 	{"cols", &cols, 10},
 	{"base", &base, 16},
+	{"basemult", &baseMult, 16},
 	{"pagesize", &pageSize, 10},
 }
 
@@ -47,20 +48,24 @@ func try_set_var(name, expr string) bool {
 }
 
 func cmd_set(cmd string) bool {
-	a := strings.SplitN(cmd, " ", 2)
+	a := strings.Split(cmd, " ")
 	if len(a) < 2 {
 		// TODO: show current vars
 		return false
 	}
 
-	args := strings.SplitN(a[1], "=", 2)
-	if len(args) < 2 {
-		showErrStr("set: need two arguments, got ", len(args))
-		return false
+	for _, v := range a[1:] {
+		args := strings.SplitN(v, "=", 2)
+		if len(args) < 2 {
+			showErrStr("set: need two arguments, got ", len(args))
+			return false
+		}
+		for i := range args {
+			args[i] = strings.TrimSpace(args[i])
+		}
+		if !try_set_var(args[0], args[1]) {
+			return false
+		}
 	}
-	for i := range args {
-		args[i] = strings.TrimSpace(args[i])
-	}
-
-	return try_set_var(args[0], args[1])
+	return true
 }

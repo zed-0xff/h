@@ -16,6 +16,8 @@ func processFlags() {
 	pflag.BoolVarP(&showHex, "hex", "H", true, "show hexadecimal representation")
 	pflag.BoolVarP(&showASCII, "ascii", "A", true, "show ASCII representation")
 
+	pflag.Int64VarP(&base, "base", "b", 0, "base for offset (default: 0)")
+
 	pflag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [options] <filename> [offset]\n", os.Args[0])
 		pflag.PrintDefaults()
@@ -45,12 +47,12 @@ func processFlags() {
 		//			}
 		//		}
 
-		var err error
-		offset, err = parseExprRadix(pos_args[1], 16)
+		offset, err := parseExprRadix(pos_args[1], 16)
 		if err != nil {
 			fmt.Println("Error parsing offset:", err)
 			os.Exit(1)
 		}
+		gotoOffset(offset)
 	}
 
 }

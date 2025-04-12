@@ -51,6 +51,7 @@ var (
 	reader          Reader
 	fileSize        int64
 	base            int64 = 0
+	baseMult        int64 = 1
 	offset          int64
 	offsetWidth     int
 	maxLinesPerPage int
@@ -234,7 +235,7 @@ func drawLine(iLine int, chunk []byte, offset int64) int {
 
 // also used for calculating max width
 func drawLine2(iLine int, chunk []byte, offset int64, max_width int) int {
-	printAt(0, iLine, fmt.Sprintf("%0*X:", offsetWidth, base+offset))
+	printAt(0, iLine, fmt.Sprintf("%0*X:", offsetWidth, base+offset*baseMult))
 	x := offsetWidth + 2
 
 	if showBin {
@@ -454,6 +455,10 @@ func invalidateSkips() {
 func lastPageOffset() int64 {
 	add := offset % cols
 	return max(0, fileSize-fileSize%cols-int64(maxLinesPerPage-1)*cols+add)
+}
+
+func gotoOffset(new_offset int64) {
+	offset = (new_offset - base) / baseMult
 }
 
 func writeFile(fname string, offset int64, size int64) error {
