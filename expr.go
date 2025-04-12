@@ -5,9 +5,6 @@ import (
 	"strings"
 )
 
-// used in ui.go
-const EXPR_ALLOWED_CHARS = "0123456789abcdefxABCDEFX-+=*/%^&| "
-
 var OPS = []struct {
 	order int
 	op    byte
@@ -25,6 +22,19 @@ var OPS = []struct {
 	{12, '^', func(a, b int64) int64 { return a ^ b }},
 	{13, '|', func(a, b int64) int64 { return a | b }},
 }
+
+// used in ui.go
+var EXPR_ALLOWED_CHARS = "0123456789abcdefxABCDEFX $" + func() string {
+	seen := make(map[byte]bool)
+	var ops []byte
+	for _, op := range OPS {
+		if !seen[op.op] {
+			seen[op.op] = true
+			ops = append(ops, op.op)
+		}
+	}
+	return string(ops)
+}()
 
 func parseExprRadix(expr string, radix int) (int64, error) {
 	expr = strings.TrimSpace(expr)
@@ -52,6 +62,10 @@ func parseExprRadix(expr string, radix int) (int64, error) {
 	}
 
 	expr = strings.TrimSpace(expr)
+
+	if expr == "$" {
+		return here(), nil
+	}
 	if strings.HasPrefix(expr, "0x") || strings.HasPrefix(expr, "0X") {
 		radix = 0
 	}

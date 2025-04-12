@@ -208,9 +208,14 @@ func drawLine(iLine int, chunk []byte, offset int64) int {
 	return drawLine2(iLine, chunk, offset, scrWidth)
 }
 
+// as in IDA's idc.here()
+func here() int64 {
+	return base + offset*baseMult
+}
+
 // also used for calculating max width
 func drawLine2(iLine int, chunk []byte, offset int64, max_width int) int {
-	printAt(0, iLine, fmt.Sprintf("%0*X:", offsetWidth, base+offset*baseMult))
+	printAt(0, iLine, fmt.Sprintf("%0*X:", offsetWidth, here()))
 	x := offsetWidth + 2
 
 	if showBin {
@@ -417,10 +422,6 @@ func toHex(buf []byte, cols int64, width int) string {
 	}
 
 	return hexBytes
-}
-
-func toHexLine(buf []byte, ea int64, cols int64, width int) string {
-	return fmt.Sprintf("%0*X: %s", offsetWidth, ea, toHex(buf, cols, width))
 }
 
 func invalidateSkips() {
