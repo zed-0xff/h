@@ -87,7 +87,7 @@ func parseExprRadix_(expr string, radix int) (int64, error) {
 	if expr == "$" {
 		return here(), nil
 	}
-	if strings.HasPrefix(expr, "0") {
+	if strings.HasPrefix(expr, "0") && len(expr) > 2 {
 		switch expr[0:2] {
 		case "0x", "0o", "0b": // golang's supported prefixes
 			radix = 0
