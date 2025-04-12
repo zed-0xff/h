@@ -36,7 +36,8 @@ var EXPR_ALLOWED_CHARS = "0123456789abcdefxABCDEFX $" + func() string {
 	return string(ops)
 }()
 
-func parseExprRadix(expr string, radix int) (int64, error) {
+// expects expr to be lowercase
+func parseExprRadix_(expr string, radix int) (int64, error) {
 	expr = strings.TrimSpace(expr)
 
 	for order := 0; order < 14; order++ {
@@ -66,10 +67,20 @@ func parseExprRadix(expr string, radix int) (int64, error) {
 	if expr == "$" {
 		return here(), nil
 	}
-	if strings.HasPrefix(expr, "0x") || strings.HasPrefix(expr, "0X") {
-		radix = 0
+	if strings.HasPrefix(expr, "0") {
+		switch expr[0:2] {
+		case "0x", "0o", "0b": // golang's supported prefixes
+			radix = 0
+		case "0n": // 0n123 - force decimal
+			radix = 10
+			expr = expr[2:]
+		}
 	}
 	return strconv.ParseInt(expr, radix, 64)
+}
+
+func parseExprRadix(expr string, radix int) (int64, error) {
+	return parseExprRadix_(strings.ToLower(expr), radix)
 }
 
 func parseExpr(expr string) (int64, error) {
