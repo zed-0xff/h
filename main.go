@@ -438,6 +438,7 @@ func lastPageOffset() int64 {
 }
 
 func gotoOffset(new_offset int64) {
+	breadcrumbs = append(breadcrumbs, Breadcrumb{offset, -1})
 	offset = (new_offset - base) / baseMult
 }
 
