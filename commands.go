@@ -15,20 +15,88 @@ var INT_VARS = []struct {
 	{"pagesize", &pageSize, 10},
 }
 
-func run_cmd(cmd string) bool {
-	a := strings.SplitN(cmd, " ", 2)
+var COMMANDS = []struct {
+	name string
+	fn   func(string)
+}{
+	{"beep", func(string) { beep() }},
+	{"goto", cmd_goto},
+	{"set", cmd_set},
+}
 
-	switch a[0] {
-	case "beep":
-		beep()
-	case "set":
-		return cmd_set(cmd)
-	default:
-		showErrStr("unknown command: " + a[0])
-		return false
+func cmd_goto(args string) {
+	if args == "" {
+		showErrStr("goto: need one argument")
+		return
 	}
 
-	return true
+	a := strings.Split(args, " ")
+	if len(a) != 1 {
+		showErrStr("goto: need one argument, got ", len(a))
+		return
+	}
+
+	args = strings.TrimSpace(a[0])
+	if args == "" {
+		showErrStr("goto: empty argument")
+		return
+	}
+
+	offs, err := parseExprRadix(args, 16)
+	if err != nil {
+		showError(err)
+		return
+	}
+	gotoOffset(offs)
+}
+
+func cmd_set(args string) {
+	if args == "" {
+		// TODO: show current vars
+		return
+	}
+
+	a := strings.Split(args, " ")
+	for _, v := range a {
+		args := strings.SplitN(v, "=", 2)
+		if len(args) < 2 {
+			showErrStr("set: need two arguments, got ", len(args))
+			return
+		}
+		for i := range args {
+			args[i] = strings.TrimSpace(args[i])
+		}
+		try_set_var(args[0], args[1])
+	}
+}
+
+func run_cmd(cmd string) {
+	a := strings.SplitN(cmd, " ", 2)
+	cmd = a[0]
+
+	args := ""
+	if len(a) > 1 {
+		args = a[1]
+	}
+
+	names := make([]string, 0)
+	var pfun func(string)
+
+	for _, c := range COMMANDS {
+		if strings.HasPrefix(c.name, cmd) {
+			names = append(names, c.name)
+			pfun = c.fn
+		}
+	}
+
+	switch len(names) {
+	case 0:
+		showErrStr("unknown command: " + cmd)
+	case 1:
+		pfun(args)
+	default:
+		showErrStr("ambiguous command: "+cmd+" (", strings.Join(names, ", "), ")")
+	}
 }
 
 func try_set_var(name, expr string) bool {
@@ -45,27 +113,4 @@ func try_set_var(name, expr string) bool {
 	}
 	showErrStr("unknown variable: " + name)
 	return false
-}
-
-func cmd_set(cmd string) bool {
-	a := strings.Split(cmd, " ")
-	if len(a) < 2 {
-		// TODO: show current vars
-		return false
-	}
-
-	for _, v := range a[1:] {
-		args := strings.SplitN(v, "=", 2)
-		if len(args) < 2 {
-			showErrStr("set: need two arguments, got ", len(args))
-			return false
-		}
-		for i := range args {
-			args[i] = strings.TrimSpace(args[i])
-		}
-		if !try_set_var(args[0], args[1]) {
-			return false
-		}
-	}
-	return true
 }
