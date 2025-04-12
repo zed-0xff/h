@@ -595,8 +595,8 @@ func main() {
 	}
 	defer screen.Fini()
 
-	setCols(cols) // calc defaults if cols == 0
-	//defaultColsMode = 1 // next mode
+	defaultColsMode = 1 // default cols - max power of 2 that fits in scrWidth
+	setCols(cols)       // calc defaults if cols == 0
 
 	go buildSparseMap()
 
