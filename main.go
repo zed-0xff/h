@@ -210,12 +210,16 @@ func drawLine(iLine int, chunk []byte, offset int64) int {
 
 // as in IDA's idc.here()
 func here() int64 {
+	return offset2ea(offset)
+}
+
+func offset2ea(offset int64) int64 {
 	return base + offset*baseMult
 }
 
 // also used for calculating max width
 func drawLine2(iLine int, chunk []byte, offset int64, max_width int) int {
-	printAt(0, iLine, fmt.Sprintf("%0*X:", offsetWidth, here()))
+	printAt(0, iLine, fmt.Sprintf("%0*X:", offsetWidth, offset2ea(offset)))
 	x := offsetWidth + 2
 
 	if showBin {
