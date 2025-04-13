@@ -23,6 +23,7 @@ var (
 	numMode              = NumModeHex
 	altColorMode    bool = false
 	defaultColsMode int  = 0
+	customColsMode  bool = false
 
 	screen    tcell.Screen
 	scrWidth  int
@@ -63,11 +64,16 @@ var ASCII_TBL = []rune(
 func draw() {
 	screen.Clear()
 
-	scrWidth, scrHeight = screen.Size()
 	if scrWidth == 0 || scrHeight == 0 {
-		screen.Fini()
-		fmt.Println("Error getting screen size", scrWidth, scrHeight)
-		os.Exit(1)
+		scrWidth, scrHeight = screen.Size()
+		if scrWidth == 0 || scrHeight == 0 {
+			screen.Fini()
+			fmt.Println("Error getting screen size", scrWidth, scrHeight)
+			os.Exit(1)
+		}
+	}
+	if cols == 0 {
+		calcDefaultCols(scrWidth)
 	}
 	maxLinesPerPage = scrHeight - 1
 	nextOffset = fileHexDump(reader, maxLinesPerPage)
@@ -83,6 +89,41 @@ func draw() {
 	}
 
 	screen.Show()
+}
+
+func calcDefaultCols(scrWidth int) {
+	if scrWidth < 1 {
+		return
+	}
+
+	max_w := 1
+
+	for max_w < scrWidth {
+		max_w *= 2
+	}
+	data := make([]byte, max_w*2)
+	for i := 0; i < 0x1000 && max_w > 1; i++ { // prevent infinite loop
+		cols = int64(max_w) // XXX drawLine2 ASCII output uses that
+
+		w := drawLine2(-1, data[:max_w], 0, len(data))
+		if w <= scrWidth {
+			break
+		}
+		if defaultColsMode == 0 {
+			max_w /= 2
+		} else {
+			max_w -= 1
+		}
+	}
+
+	if max_w%elWidth != 0 {
+		max_w -= max_w % elWidth
+	}
+	if max_w < 1 {
+		max_w = 1
+	}
+
+	cols = int64(max_w)
 }
 
 func printAtBytes(x, y int, msg []byte) {
@@ -401,7 +442,7 @@ func setCols(c int64) {
 	cols = c
 	if cols == 0 {
 		defaultColsMode = 1 - defaultColsMode
-		calcDefaultCols()
+		calcDefaultCols(scrWidth)
 		defaultColsMode = 1 - defaultColsMode
 	}
 }

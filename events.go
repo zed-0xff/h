@@ -11,6 +11,13 @@ func handleEvents() {
 		dir := 0
 		ev := screen.PollEvent()
 		switch ev := ev.(type) {
+		case *tcell.EventResize:
+			scrWidth, scrHeight = ev.Size()
+			if !customColsMode {
+				calcDefaultCols(scrWidth)
+			}
+			draw()
+
 		case *tcell.EventKey:
 			lastErrMsg = "" // reset last error message on any key event
 
@@ -125,31 +132,34 @@ func handleEvents() {
 							offset += pageSize
 						}
 					case '-':
-						defaultColsMode = 0
+						customColsMode = true
+						defaultColsMode = 1
 						if cols-int64(elWidth) > 0 {
 							cols -= int64(elWidth)
 							invalidateSkips()
 						}
 					case '_':
-						defaultColsMode = 0
+						customColsMode = true
+						defaultColsMode = 1
 						if cols > 1 {
 							cols /= 2
 							invalidateSkips()
 						}
 					case '=':
-						defaultColsMode = 0
+						customColsMode = true
+						defaultColsMode = 1
 						cols += int64(elWidth)
 						invalidateSkips()
 					case '+':
-						defaultColsMode = 0
+						customColsMode = true
+						defaultColsMode = 1
 						cols *= 2
 						invalidateSkips()
 					case '0':
-						// no modifiers => set default cols number
-						calcDefaultCols()
+						customColsMode = false
 						defaultColsMode = 1 - defaultColsMode
+						calcDefaultCols(scrWidth)
 					case '1', '2', '4', '8':
-						// no modifiers => set element width
 						elWidth = int(ev.Rune() - '0')
 					case ':':
 						cmd := askCommand()
@@ -195,7 +205,7 @@ func handleEvents() {
 					case 'q', 'Q':
 						return
 					case 'W':
-						fname := askString("write to: ", fmt.Sprintf("%0*x.bin", offsetWidth, offset))
+						fname := askString("write to: ", fmt.Sprintf("%0*x.bin", offsetWidth, here()))
 						if fname != "" {
 							size := askHexInt("[hex] size: ", 0x1000)
 							if size > 0 {

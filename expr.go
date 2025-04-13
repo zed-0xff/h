@@ -24,7 +24,7 @@ var OPS = []struct {
 }
 
 // used in ui.go
-var EXPR_ALLOWED_CHARS = "0123456789abcdefxABCDEFX $" + func() string {
+var OPS_CHARS = func() string {
 	seen := make(map[byte]bool)
 	var ops []byte
 	for _, op := range OPS {
@@ -35,6 +35,15 @@ var EXPR_ALLOWED_CHARS = "0123456789abcdefxABCDEFX $" + func() string {
 	}
 	return string(ops)
 }()
+
+const (
+	HEX_CHARS       = "0123456789abcdefABCDEF"
+	SPACE           = " "
+	RADIX_MODIFIERS = "nNxXoO" // 'n' is for decimal
+	SPECIAL_VARS    = "$"      // here()
+)
+
+var EXPR_ALLOWED_CHARS = HEX_CHARS + SPACE + RADIX_MODIFIERS + SPECIAL_VARS
 
 var MAX_ORDER = func() int {
 	maxOrder := 0

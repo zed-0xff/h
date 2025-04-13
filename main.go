@@ -481,38 +481,6 @@ func gotoBookmark(n int) {
 	offset = bookmarks[n]
 }
 
-func calcDefaultCols() {
-	scrWidth, _ := screen.Size()
-	max_w := 1
-
-	for max_w < scrWidth {
-		max_w *= 2
-	}
-	data := make([]byte, max_w*2)
-	for i := 0; i < 0x1000 && max_w > 1; i++ { // prevent infinite loop
-		cols = int64(max_w) // XXX drawLine2 ASCII output uses that
-
-		w := drawLine2(-1, data[:max_w], 0, len(data))
-		if w <= scrWidth {
-			break
-		}
-		if defaultColsMode == 0 {
-			max_w /= 2
-		} else {
-			max_w -= 1
-		}
-	}
-
-	if max_w%elWidth != 0 {
-		max_w -= max_w % elWidth
-	}
-	if max_w < 1 {
-		max_w = 1
-	}
-
-	cols = int64(max_w)
-}
-
 func printLastErr() {
 	if lastErrMsg != "" {
 		fmt.Println(lastErrMsg)
@@ -594,9 +562,6 @@ func main() {
 		panic(err)
 	}
 	defer screen.Fini()
-
-	defaultColsMode = 1 // default cols - max power of 2 that fits in scrWidth
-	setCols(cols)       // calc defaults if cols == 0
 
 	go buildSparseMap()
 
