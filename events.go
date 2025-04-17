@@ -204,6 +204,10 @@ func handleEvents() {
 						pageSize = askInt("page size (0 = auto): ", pageSize)
 					case 'q', 'Q':
 						return
+					case 'u':
+						showUnicode = !showUnicode
+					case 'U':
+						unicodeMode = !unicodeMode
 					case 'W':
 						fname := askString("write to: ", fmt.Sprintf("%0*x.bin", offsetWidth, here()))
 						if fname != "" {

@@ -240,6 +240,21 @@ func drawLine2(iLine int, chunk []byte, offset int64, max_width int) int {
 		}
 	}
 
+	if showUnicode {
+		var s string
+		if unicodeMode {
+			s = decodeUTF16LE(chunk)
+		} else {
+			s = decodeUTF16BE(chunk)
+		}
+		start_x := x
+		stickToRight := !showASCII && (cols < int64(max_width)) && (showBin || showHex)
+		if stickToRight {
+			start_x = max_width - int(cols)/2
+		}
+		x += printAt(start_x, iLine, s) + 1
+	}
+
 	if showASCII {
 		if cols < int64(max_width) && (showBin || showHex) {
 			printAtBytes(max_width-int(cols), iLine, chunk)
@@ -251,6 +266,25 @@ func drawLine2(iLine int, chunk []byte, offset int64, max_width int) int {
 	return x
 }
 
+func findNL(buf []byte) (int, int) {
+	nlPos := 0
+	nlLen := 1
+	if showUnicode {
+		nlPos1 := bytes.IndexAny(buf, "\r\n")
+		nlPos2 := bytes.Index(buf, []byte{0, 0})
+		nlPos = min(nlPos1, nlPos2)
+	} else {
+		nlPos = bytes.IndexAny(buf, "\r\n\x00")
+	}
+	if nlPos == -1 {
+		return -1, 0
+	}
+	for nlPos+nlLen < len(buf) && (buf[nlPos+nlLen] == 0 || buf[nlPos+nlLen] == '\r' || buf[nlPos+nlLen] == '\n') {
+		nlLen++
+	}
+	return nlPos, nlLen
+}
+
 func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 	var chunkPos int64
 	var bufSize int
@@ -258,6 +292,10 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 	t0 := time.Now()
 	scrWidth, _ = screen.Size() // Get the screen width before drawing the lines
 	maxTextCols := scrWidth - 2 - offsetWidth
+
+	if showUnicode && maxTextCols%2 == 1 {
+		maxTextCols--
+	}
 
 	if dispMode == DispModeText {
 		bufSize = maxTextCols * maxLines
@@ -282,12 +320,12 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 		for i := range chunks {
 			chunks[i] = make([]byte, maxTextCols) // Create each chunk as a byte slice of length maxTextCols
 		}
-		nlPos := bytes.IndexAny(buf, "\r\n")
+		nlPos, nlLen := findNL(buf)
 		if nlPos == -1 {
 			nlPos = maxTextCols
 		}
-		chunks[c] = buf[0:nlPos]
-		chunkPos = int64(nlPos)
+		chunks[c] = buf[0:(nlPos + nlLen)]
+		chunkPos = int64(nlPos + nlLen)
 	} else {
 		for i := range chunks {
 			chunks[i] = make([]byte, cols) // Create each chunk as a byte slice of length cols
@@ -314,15 +352,15 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 		}
 
 		if dispMode == DispModeText {
-			for buf[chunkPos] == '\r' || buf[chunkPos] == '\n' {
+			for buf[chunkPos] == '\r' || buf[chunkPos] == '\n' || buf[chunkPos] == 0 {
 				chunkPos++
 				curLineOffset++
 			}
-			nlPos := bytes.IndexAny(buf[chunkPos:], "\r\n")
+			nlPos, nlLen := findNL(buf[chunkPos:])
 			if nlPos == -1 {
 				nlPos = maxTextCols
 			}
-			chunks[c] = buf[chunkPos : chunkPos+int64(nlPos)]
+			chunks[c] = buf[chunkPos : chunkPos+int64(nlPos+nlLen)]
 		} else {
 			chunks[c] = buf[chunkPos : chunkPos+cols]
 		}
@@ -343,6 +381,7 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 			chunkPos += int64(len(chunks[c]))
 
 			if dispMode == DispModeText {
+				// TODO: skip consecutive newlines if g_dedup is on
 				for chunkPos < int64(len(buf)) && (buf[chunkPos] == '\r' || buf[chunkPos] == '\n') {
 					chunkPos++
 					curLineOffset++

@@ -14,9 +14,10 @@ var (
 	stGray = tcell.StyleDefault.Foreground(tcell.NewRGBColor(0x30, 0x30, 0x30))
 	stErr  = tcell.StyleDefault.Foreground(tcell.NewRGBColor(0xFF, 0x00, 0x00))
 
-	showBin   bool = false
-	showHex   bool = true
-	showASCII bool = true
+	showBin     bool = false
+	showHex     bool = true
+	showASCII   bool = true
+	showUnicode bool = false
 
 	binMode01            = false
 	dispMode             = DispModeDump
@@ -24,6 +25,7 @@ var (
 	altColorMode    bool = false
 	defaultColsMode int  = 0
 	customColsMode  bool = false
+	unicodeMode     bool = false
 
 	screen    tcell.Screen
 	scrWidth  int
