@@ -18,6 +18,8 @@ func processFlags() {
 
 	pflag.Int64VarP(&base, "base", "b", 0, "base for offset (default: 0)")
 
+	pflag.BoolVarP(&allowWrite, "allow-write", "w", false, "allow write access")
+
 	pflag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [options] <filename> [offset]\n", os.Args[0])
 		pflag.PrintDefaults()

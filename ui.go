@@ -315,7 +315,7 @@ func waitForAnyKey() {
 
 var g_searchMode = 0
 
-func askSearchPattern(pattern0 []byte) []byte {
+func askPattern(prefix string, pattern0 []byte) []byte {
 	var key tcell.Key
 	var str string
 
@@ -324,7 +324,7 @@ func askSearchPattern(pattern0 []byte) []byte {
 	for {
 		if g_searchMode == 0 {
 			pattern_str := strings.TrimSpace(toHex(pattern, int64(scrWidth/3), 1))
-			str, key = ask("find hex : ", pattern_str, "0123456789abcdefABCDEF ", firstKey, tcell.KeyTab, tcell.KeyUp, tcell.KeyDown)
+			str, key = ask(prefix+"hex : ", pattern_str, "0123456789abcdefABCDEF ", firstKey, tcell.KeyTab, tcell.KeyUp, tcell.KeyDown)
 			if key == tcell.KeyEnter {
 				pattern = fromHex(str)
 				searchHistory.Add(g_searchMode, pattern)
@@ -332,7 +332,7 @@ func askSearchPattern(pattern0 []byte) []byte {
 			}
 		} else {
 			pattern_str := string(pattern)
-			str, key = ask("find text: ", pattern_str, "", firstKey, tcell.KeyTab, tcell.KeyUp, tcell.KeyDown)
+			str, key = ask(prefix+"text: ", pattern_str, "", firstKey, tcell.KeyTab, tcell.KeyUp, tcell.KeyDown)
 			if key == tcell.KeyEnter {
 				pattern = []byte(str)
 				searchHistory.Add(g_searchMode, pattern)

@@ -2,18 +2,21 @@ package main
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 )
 
 var INT_VARS = []struct {
 	name         string
-	pvar         *int64
+	pvar         interface{}
+	type_id      reflect.Type
 	defaultRadix int
 }{
-	{"cols", &cols, 10},
-	{"base", &base, 16},
-	{"basemult", &baseMult, 16},
-	{"pagesize", &pageSize, 10},
+	{"cols", &cols, reflect.TypeOf(cols), 10},
+	{"base", &base, reflect.TypeOf(base), 16},
+	{"baseMult", &baseMult, reflect.TypeOf(baseMult), 16},
+	{"pageSize", &pageSize, reflect.TypeOf(pageSize), 10},
+	{"allowWrite", &allowWrite, reflect.TypeOf(allowWrite), 0},
 }
 
 var COMMANDS = []struct {
@@ -129,14 +132,30 @@ func run_cmd(cmd string) {
 
 func try_set_var(name, expr string) bool {
 	for _, v := range INT_VARS {
-		if v.name == name {
-			if val, err := parseExprRadix(expr, v.defaultRadix); err == nil {
-				*v.pvar = val
-				return true
-			} else {
-				showError(err)
+		if strings.EqualFold(v.name, name) {
+			switch p := v.pvar.(type) {
+			case *int64:
+				if val, err := parseExprRadix(expr, v.defaultRadix); err == nil {
+					*p = val
+				} else {
+					showError(err)
+					return false
+				}
+			case *bool:
+				switch strings.ToLower(expr) {
+				case "true", "1", "yes", "y":
+					*p = true
+				case "false", "0", "no", "n":
+					*p = false
+				default:
+					showErrStr("invalid boolean value: ", expr)
+					return false
+				}
+			default:
+				showErrStr("unknown type for variable: ", name)
 				return false
 			}
+			return true
 		}
 	}
 	showErrStr("unknown variable: " + name)

@@ -200,8 +200,27 @@ func handleEvents() {
 						if !searchPrev() {
 							beep()
 						}
-					case 'p':
+					case 'p': // set page size
 						pageSize = askInt("page size (0 = auto): ", pageSize)
+					case 'P': // patch file
+						if allowWrite {
+							patchOffset := askHexInt("[hex] offset: ", offset)
+							if patchOffset >= 0 {
+								patchSize := askHexInt("[hex] size: ", 0)
+								if patchSize > 0 {
+									patchData := askPattern("data ", []byte{0})
+									if len(patchData) > 0 {
+										if len(patchData) <= int(patchSize) {
+											patchFile(patchOffset, patchSize, patchData)
+										} else {
+											showErrStr("data too long")
+										}
+									}
+								}
+							}
+						} else {
+							showErrStr("Writing is not allowed (hint: use -w option or ':set allowWrite=1')")
+						}
 					case 'q', 'Q':
 						return
 					case 'u':

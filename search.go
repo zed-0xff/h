@@ -49,7 +49,7 @@ func fromHex(hexStr string) []byte {
 }
 
 func searchUI(dir bool) {
-	newPattern := askSearchPattern(g_searchPattern)
+	newPattern := askPattern("find ", g_searchPattern)
 	if newPattern != nil && len(newPattern) > 0 {
 		g_searchPattern = newPattern
 		if dir {

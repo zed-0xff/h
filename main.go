@@ -58,6 +58,7 @@ var (
 	nextOffset      int64
 	skipMap         map[Range]bool = make(map[Range]bool)
 	fname           string
+	allowWrite      bool = false
 
 	sparseMap []Range = make([]Range, 0)
 	mapReady  bool    = false
@@ -549,6 +550,40 @@ func getAppDir() (string, error) {
 		return "", err
 	}
 	return filepath.Join(configDir, "h"), nil
+}
+
+func patchFile(offset, size int64, data []byte) {
+	if offset < 0 || offset+size > fileSize || len(data) == 0 {
+		showErrStr("patchFile: Invalid arguments")
+		return
+	}
+
+	if !allowWrite {
+		showErrStr("Writing is not allowed (hint: use -w option or ':set allowWrite=1')")
+		return
+	}
+
+	f, err := os.OpenFile(fname, os.O_RDWR, 0644)
+	if err != nil {
+		showError(err)
+		return
+	}
+	defer f.Close()
+
+	f.Seek(offset, 0)
+	for size > 0 {
+		n := min(int(size), len(data))
+		nWritten, err := f.Write(data[0:n])
+		if err != nil {
+			showError(err)
+			return
+		}
+		if nWritten != n {
+			showErrStr("patchFile: short write", nWritten, "of", n)
+			return
+		}
+		size -= int64(len(data))
+	}
 }
 
 func main() {
