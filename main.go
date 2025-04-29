@@ -303,6 +303,7 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 	} else {
 		bufSize = int(cols) * maxLines
 	}
+	bufSize = int(min(int64(bufSize), fileSize-offset))
 	var buf = make([]byte, bufSize)
 
 	curLineOffset := offset
@@ -331,7 +332,7 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 		for i := range chunks {
 			chunks[i] = make([]byte, cols) // Create each chunk as a byte slice of length cols
 		}
-		chunks[c] = buf[0:cols]
+		chunks[c] = buf[0:min(int(cols), len(buf))]
 		chunkPos = cols
 	}
 
@@ -342,7 +343,7 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 	iLine := 1
 	var curSkip Range
 
-	for iLine < maxLines {
+	for iLine < maxLines && chunkPos < fileSize {
 		if time.Since(t0) > progressInterval {
 			drawLine(iLine, make([]byte, 0), curLineOffset)
 			screen.Show()
@@ -367,7 +368,7 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 				chunks[c] = buf[chunkPos : chunkPos+int64(nlPos+nlLen)]
 			}
 		} else {
-			chunks[c] = buf[chunkPos : chunkPos+cols]
+			chunks[c] = buf[chunkPos:min(chunkPos+cols, int64(len(buf)))]
 		}
 
 		if !g_dedup || dispMode == DispModeText || !bytes.Equal(chunks[c], chunks[1-c]) {
@@ -433,7 +434,7 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 	}
 
 	// Draw the last line if it was a separator or EOF
-	if iLine < maxLines && (was_separator || nRead == 0) {
+	if iLine < maxLines && (was_separator || nRead == 0 || chunkPos >= fileSize) {
 		drawLine(iLine, make([]byte, 0), fileSize)
 	}
 	return curLineOffset
