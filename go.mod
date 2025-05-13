@@ -1,6 +1,7 @@
 module h
 
-go 1.22.3
+// go1.20 is max go supported for windows 7 builds
+go 1.20
 
 require (
 	github.com/gdamore/tcell/v2 v2.7.4

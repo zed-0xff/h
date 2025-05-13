@@ -273,7 +273,7 @@ func findNL(buf []byte) (int, int) {
 	if showUnicode {
 		nlPos1 := bytes.IndexAny(buf, "\r\n")
 		nlPos2 := bytes.Index(buf, []byte{0, 0})
-		nlPos = min(nlPos1, nlPos2)
+		nlPos = min32(nlPos1, nlPos2)
 	} else {
 		nlPos = bytes.IndexAny(buf, "\r\n\x00")
 	}
@@ -303,7 +303,7 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 	} else {
 		bufSize = int(cols) * maxLines
 	}
-	bufSize = int(min(int64(bufSize), fileSize-offset))
+	bufSize = int(min64(int64(bufSize), fileSize-offset))
 	var buf = make([]byte, bufSize)
 
 	curLineOffset := offset
@@ -332,7 +332,7 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 		for i := range chunks {
 			chunks[i] = make([]byte, cols) // Create each chunk as a byte slice of length cols
 		}
-		chunks[c] = buf[0:min(int(cols), len(buf))]
+		chunks[c] = buf[0:min32(int(cols), len(buf))]
 		chunkPos = cols
 	}
 
@@ -368,7 +368,7 @@ func fileHexDump(f io.ReaderAt, maxLines int) int64 {
 				chunks[c] = buf[chunkPos : chunkPos+int64(nlPos+nlLen)]
 			}
 		} else {
-			chunks[c] = buf[chunkPos:min(chunkPos+cols, int64(len(buf)))]
+			chunks[c] = buf[chunkPos:min64(chunkPos+cols, int64(len(buf)))]
 		}
 
 		if !g_dedup || dispMode == DispModeText || !bytes.Equal(chunks[c], chunks[1-c]) {
@@ -478,7 +478,7 @@ func invalidateSkips() {
 
 func lastPageOffset() int64 {
 	add := offset % cols
-	return max(0, fileSize-fileSize%cols-int64(maxLinesPerPage-1)*cols+add)
+	return max64(0, fileSize-fileSize%cols-int64(maxLinesPerPage-1)*cols+add)
 }
 
 func gotoOffset(new_offset int64) {
@@ -577,7 +577,7 @@ func patchFile(offset, size int64, data []byte) {
 
 	f.Seek(offset, 0)
 	for size > 0 {
-		n := min(int(size), len(data))
+		n := min32(int(size), len(data))
 		nWritten, err := f.Write(data[0:n])
 		if err != nil {
 			showError(err)
