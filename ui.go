@@ -80,9 +80,9 @@ func draw() {
 	maxLinesPerPage = scrHeight - 1
 	nextOffset = fileHexDump(reader, maxLinesPerPage)
 
-	printAt(0, maxLinesPerPage, ":")
+	printAtSt(0, maxLinesPerPage, ":", stGray)
 	shortname := shortenFName(fname, scrWidth-10)
-	printAt(scrWidth-utf8.RuneCountInString(shortname), maxLinesPerPage, shortname)
+	printAtSt(scrWidth-utf8.RuneCountInString(shortname), maxLinesPerPage, shortname, stGray)
 
 	if len(lastErrMsg) > 0 {
 		printAtSt(0, maxLinesPerPage, lastErrMsg, stErr)
