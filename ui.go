@@ -186,7 +186,7 @@ func ask(prompt, curValue, allowedChars string, firstKey bool, termKeys ...tcell
 	cursorPos := buffer.Len()
 	printAt(0, maxLinesPerPage, prompt)
 	for {
-		printAtEx(len(prompt), maxLinesPerPage, fmt.Sprintf("%*s%s", -w, buffer.String()), func(i int) tcell.Style {
+		printAtEx(len(prompt), maxLinesPerPage, fmt.Sprintf("%*s", -w, buffer.String()), func(i int) tcell.Style {
 			return tcell.StyleDefault.Underline(i == cursorPos)
 		})
 		screen.Show()
