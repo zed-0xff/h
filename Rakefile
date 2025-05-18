@@ -1,5 +1,5 @@
 task :default do
-  sh "go build"
+  sh "go fmt && go build"
 end
 
 namespace :braile do
