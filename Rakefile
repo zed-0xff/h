@@ -1,3 +1,7 @@
+task :default do
+  sh "go build"
+end
+
 namespace :braile do
   desc "group chars by number of dots"
   task :by_dots do
