@@ -7,6 +7,10 @@ import (
 	"unsafe"
 )
 
+func getDeviceAlign(fname string) int {
+	return 0 // TODO: check
+}
+
 const (
 	DKIOCGETBLOCKSIZE  = 0x40046418
 	DKIOCGETBLOCKCOUNT = 0x40086419

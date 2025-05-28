@@ -48,6 +48,7 @@ const MaxMode = 3
 const TextMode = 3
 
 var (
+	g_debug         bool = false
 	reader          Reader
 	fileSize        int64
 	base            int64 = 0
@@ -606,26 +607,37 @@ func main() {
 	}
 	defer file.Close()
 
-	if strings.HasPrefix(fname, "\\\\.\\PhysicalDrive") {
+	align := 0
+	reader = file
+	if isBlockDevice(fname) {
 		fileSize, err = getDeviceSize(fname)
 		if err != nil {
 			panic(err)
 		}
-		reader = NewAlignedReader(file, fileSize, 512)
-	} else {
-		reader = file
-		if isBlockDevice(fname) {
-			fileSize, err = getDeviceSize(fname)
-			if err != nil {
-				panic(err)
-			}
-		} else {
-			fileInfo, err := file.Stat()
-			if err != nil {
-				panic(err)
-			}
-			fileSize = fileInfo.Size()
+		align = getDeviceAlign(fname)
+		if align != 0 {
+			reader = NewAlignedReader(file, fileSize, align)
 		}
+	} else {
+		fileInfo, err := file.Stat()
+		if err != nil {
+			panic(err)
+		}
+		fileSize = fileInfo.Size()
+	}
+
+	if g_debug {
+		fmt.Println("[d] size:", fileSize)
+		fmt.Println("[d] isBlockDevice:", isBlockDevice(fname))
+		fmt.Println("[d] align:", align)
+		buildSparseMap()
+		if len(sparseMap) > 0 {
+			fmt.Println("[d] sparse map:")
+			for i, r := range sparseMap {
+				fmt.Printf("%2x: %12x %12x\n", i, r.start, r.end)
+			}
+		}
+		os.Exit(0)
 	}
 
 	go initSearchHistory()

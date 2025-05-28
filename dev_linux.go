@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"syscall"
 	"unsafe"
-
-	"golang.org/x/sys/unix"
 )
+
+func getDeviceAlign(fname string) int {
+	return 0
+}
 
 const (
 	BLKGETSIZE64 = 0x80081272 // ioctl command for getting the size of a block device (in bytes)

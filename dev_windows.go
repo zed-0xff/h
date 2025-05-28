@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"golang.org/x/sys/windows"
+	"strings"
 	"syscall"
 	"unsafe"
 )
@@ -59,8 +60,15 @@ func getDeviceSize(drive string) (int64, error) {
 	return geometryEx.DiskSize, nil
 }
 
-func isBlockDevice(path string) bool {
-	return false
+func isBlockDevice(fname string) bool {
+	return strings.HasPrefix(fname, "\\\\.\\PhysicalDrive")
+}
+
+func getDeviceAlign(fname string) int {
+	if isBlockDevice(fname) {
+		return 512 // TODO: is it always 512 ?
+	}
+	return 0
 }
 
 const FSCTL_QUERY_ALLOCATED_RANGES = 0x940cf
