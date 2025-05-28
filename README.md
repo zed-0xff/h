@@ -7,6 +7,7 @@
  - fast reading of files with sparse areas (both on windows and *nix)
  - hex/text search
  - remember search history
+ - windows/freebsd: aligned block device reading
 
 ## TODO
  - remember file position and visual mode (number of columns, etc)
