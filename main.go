@@ -600,6 +600,12 @@ func patchFile(offset, size int64, data []byte) {
 func main() {
 	processFlags()
 
+	fname := fname // don't modify the original fname
+	absPath, err := filepath.EvalSymlinks(fname)
+	if err == nil {
+		fname = absPath
+	}
+
 	file, err := os.Open(fname)
 	if err != nil {
 		fmt.Println("Error opening file:", err)
