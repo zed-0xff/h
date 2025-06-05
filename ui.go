@@ -272,7 +272,7 @@ func askInt(prompt string, curValue int64) int64 {
 	return n
 }
 
-// same as askHexInt(), but also support percents, i.e. "goto 50%"
+// same as askHexInt(), but also support percents, i.e. "goto 50%", keeping current alignment
 func askOffset(prompt string, curValue int64) int64 {
 	str, _ := ask(prompt, fmt.Sprintf("%x", curValue), EXPR_ALLOWED_CHARS, true)
 	if str == "" {
@@ -284,7 +284,12 @@ func askOffset(prompt string, curValue int64) int64 {
 			beep()
 			return curValue
 		}
-		return (n * fileSize) / 100
+		newOffset := (n * fileSize) / 100
+		if elWidth > 1 {
+			newOffset -= newOffset % int64(elWidth) // align to element size
+			newOffset += offset % int64(elWidth)    // keep current offset alignment
+		}
+		return newOffset
 	}
 	n, err := parseExprRadix(strings.ToLower(str), 16)
 	if err != nil {
