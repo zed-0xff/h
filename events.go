@@ -49,7 +49,10 @@ func handleEvents() {
 				dir = -1
 				offset -= cols
 			case tcell.KeyCtrlG:
-				offset = askHexInt("[hex] offset: ", offset)
+				new_offset := askOffset("[hex] offset: ", offset)
+				if new_offset != offset {
+					gotoOffset(new_offset)
+				}
 			case tcell.KeyPgDn:
 				breadcrumbs = append(breadcrumbs, Breadcrumb{offset, tcell.KeyPgDn})
 				dir = 1
@@ -183,7 +186,7 @@ func handleEvents() {
 					case 'd':
 						g_dedup = !g_dedup
 					case 'g':
-						new_offset := askHexInt("[hex] offset: ", offset)
+						new_offset := askOffset("[hex] offset: ", offset)
 						if new_offset != offset {
 							gotoOffset(new_offset)
 						}

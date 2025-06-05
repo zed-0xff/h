@@ -272,6 +272,28 @@ func askInt(prompt string, curValue int64) int64 {
 	return n
 }
 
+// same as askHexInt(), but also support percents, i.e. "goto 50%"
+func askOffset(prompt string, curValue int64) int64 {
+	str, _ := ask(prompt, fmt.Sprintf("%x", curValue), EXPR_ALLOWED_CHARS, true)
+	if str == "" {
+		return curValue
+	}
+	if str[len(str)-1] == '%' {
+		n, err := parseExprRadix(strings.ToLower(str[:len(str)-1]), 10)
+		if err != nil || n < 0 || n > 100 {
+			beep()
+			return curValue
+		}
+		return (n * fileSize) / 100
+	}
+	n, err := parseExprRadix(strings.ToLower(str), 16)
+	if err != nil {
+		beep()
+		return curValue
+	}
+	return n
+}
+
 func askHexInt(prompt string, curValue int64) int64 {
 	str, _ := ask(prompt, fmt.Sprintf("%x", curValue), EXPR_ALLOWED_CHARS, true)
 	if str == "" {
