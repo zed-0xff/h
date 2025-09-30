@@ -17,6 +17,7 @@ var INT_VARS = []struct {
 	{"baseMult", &baseMult, reflect.TypeOf(baseMult), 16},
 	{"pageSize", &pageSize, reflect.TypeOf(pageSize), 10},
 	{"allowWrite", &allowWrite, reflect.TypeOf(allowWrite), 0},
+	{"offsetWidth", &offsetWidth, reflect.TypeOf(offsetWidth), 0},
 }
 
 var COMMANDS = []struct {
