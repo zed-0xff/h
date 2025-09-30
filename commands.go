@@ -135,6 +135,13 @@ func try_set_var(name, expr string) bool {
 	for _, v := range INT_VARS {
 		if strings.EqualFold(v.name, name) {
 			switch p := v.pvar.(type) {
+			case *int:
+				if val, err := parseExprRadix(expr, v.defaultRadix); err == nil {
+					*p = int(val)
+				} else {
+					showError(err)
+					return false
+				}
 			case *int64:
 				if val, err := parseExprRadix(expr, v.defaultRadix); err == nil {
 					*p = val
