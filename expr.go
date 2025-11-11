@@ -104,6 +104,10 @@ func parseExprRadix_(expr string, radix int) (int64, error) {
 			radix = 10
 			expr = expr[2:]
 		}
+	} else if strings.HasPrefix(expr, ".") && len(expr) > 1 {
+		// .100 => decimal 100 as in GDB
+		radix = 10
+		expr = expr[1:]
 	}
 	return strconv.ParseInt(expr, radix, 64)
 }
