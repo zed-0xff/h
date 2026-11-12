@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/gdamore/tcell/v2"
@@ -54,24 +55,54 @@ func handleEvents() {
 					gotoOffset(new_offset)
 				}
 			case tcell.KeyPgDn:
-				breadcrumbs = append(breadcrumbs, Breadcrumb{offset, tcell.KeyPgDn})
-				dir = 1
-				if pageSize == 0 {
-					offset = nextOffset
+				// try to efficiently handle skipping over deduplicated lines
+				if len(breadcrumbs) > 0 && breadcrumbs[len(breadcrumbs)-1].key == tcell.KeyPgUp {
+					offset = breadcrumbs[len(breadcrumbs)-1].offset
+					breadcrumbs = breadcrumbs[:len(breadcrumbs)-1]
 				} else {
-					offset += pageSize
+					breadcrumbs = append(breadcrumbs, Breadcrumb{offset, tcell.KeyPgDn})
+					if pageSize == 0 {
+						offset = nextOffset
+					} else {
+						offset += pageSize
+					}
 				}
+				dir = 1
 			case tcell.KeyPgUp:
-				// efficiently handle skipping over deduplicated lines
+				// try to efficiently handle skipping over deduplicated lines
 				if len(breadcrumbs) > 0 && breadcrumbs[len(breadcrumbs)-1].key == tcell.KeyPgDn {
+					// pop the last location if the previous key was PgDn
 					offset = breadcrumbs[len(breadcrumbs)-1].offset
 					breadcrumbs = breadcrumbs[:len(breadcrumbs)-1]
 				} else {
 					breadcrumbs = append(breadcrumbs, Breadcrumb{offset, tcell.KeyPgUp})
-					if pageSize == 0 {
-						offset -= cols * int64(maxLinesPerPage)
-					} else {
-						offset -= pageSize
+					// if we're inside a deduplicated region => scan to find meaningful data before it
+					jumped := false
+					if g_dedup && offset >= cols*2 {
+						curLine := make([]byte, cols)
+						prevLine := make([]byte, cols)
+						n1, _ := reader.ReadAt(curLine, offset)
+						n2, _ := reader.ReadAt(prevLine, offset-cols)
+						if n1 == int(cols) && n2 == int(cols) && bytes.Equal(curLine, prevLine) {
+							// we're inside a deduplicated region, scan backwards
+							scanPos := offset - cols*2
+							for scanPos >= 0 {
+								n, _ := reader.ReadAt(prevLine, scanPos)
+								if n != int(cols) || !bytes.Equal(curLine, prevLine) {
+									break
+								}
+								scanPos -= cols
+							}
+							offset = scanPos + cols
+							jumped = true
+						}
+					}
+					if !jumped {
+						if pageSize == 0 {
+							offset -= cols * int64(maxLinesPerPage)
+						} else {
+							offset -= pageSize
+						}
 					}
 				}
 				dir = -1
